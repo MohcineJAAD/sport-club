@@ -38,12 +38,12 @@ $months = [
     <div class="between-flex mb-20">
         <h2 class="mt-0 mb-0">
             <?= htmlspecialchars($member['prenom'] . ' ' . $member['nom']) ?>
-            <small class="fs-14" style="color:#999;"><?= htmlspecialchars($identifier) ?></small>
+            <small class="fs-14 color-c-60"><?= htmlspecialchars($identifier) ?></small>
         </h2>
-        <a href="/sport-club/admin/payments.php" class="btn">← رجوع</a>
+        <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
     </div>
 
-    <select id="yearSelect" class="mb-20 p-10" style="width:200px;border:1px solid #333;border-radius:6px;">
+    <select id="yearSelect" class="mb-20 p-10">
         <?php foreach ($years as $y): ?>
             <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>><?= $y ?></option>
         <?php endforeach; ?>
@@ -68,11 +68,11 @@ $months = [
             <?php endforeach; ?>
 
             <div class="flex-row">
-                <div class="flex-cell <?= $cardData['assurancePaid'] ? 'paid' : '' ?>" style="flex:1;">
+                <div class="flex-cell <?= $cardData['assurancePaid'] ? 'paid' : '' ?>">
                     <input type="checkbox" name="assurance" value="1" <?= $cardData['assurancePaid'] ? 'checked' : '' ?> disabled>
                     <h4>التأمين</h4>
                 </div>
-                <div class="flex-cell <?= $cardData['adhesionPaid'] ? 'paid' : '' ?>" style="flex:1;">
+                <div class="flex-cell <?= $cardData['adhesionPaid'] ? 'paid' : '' ?>">
                     <input type="checkbox" name="adhesion" value="1" <?= $cardData['adhesionPaid'] ? 'checked' : '' ?> disabled>
                     <h4>الانخراط السنوي</h4>
                 </div>
@@ -80,8 +80,12 @@ $months = [
         </div>
 
         <div class="action-buttons">
-            <button type="button" class="btn modify-btn"><i class="fas fa-edit"></i> تعديل</button>
-            <button type="submit" class="btn save-btn" style="display:none;background:#2F8C37;"><i class="fas fa-save"></i> حفظ</button>
+            <button type="button" class="btn-shape modify-btn mb-10">
+                <i class="fas fa-edit"></i> تعديل
+            </button>
+            <button type="submit" class="btn-shape save-btn hidden mb-10">
+                <i class="fas fa-save"></i> حفظ
+            </button>
         </div>
     </form>
 </div>

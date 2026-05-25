@@ -15,28 +15,47 @@ foreach ($members as $m) {
     $membersByType[$m['type']][] = $m;
 }
 
-$filterDate = $_POST['filter_date'] ?? date('Y-m-d');
-$payments   = $payment->getByDate($filterDate);
+$filterMonth = $_POST['filter_month'] ?? date('Y-m');
+$payments    = $payment->getByMonth($filterMonth);
+
+$arabicMonths = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+function formatPaymentDate($date, $months) {
+    [$y, $m] = explode('-', substr($date, 0, 7));
+    return $months[(int)$m] . ' ' . $y;
+}
 ?>
 <?php require 'layout/header.php'; ?>
 
 <h1 class="p-relative">إدارة الدفع</h1>
 
-<!-- Date filter -->
+<!-- Payment records -->
 <div class="absences p-20 bg-fff rad-10 m-20">
     <h2 class="mt-0 mb-20">سجل المدفوعات</h2>
-    <form method="POST">
-        <div class="d-flex align-c gap-10 mb-20">
-            <label>تصفية حسب التاريخ:</label>
-            <input type="date" name="filter_date" value="<?= htmlspecialchars($filterDate) ?>">
-            <button type="submit" class="btn">بحث</button>
+
+    <div class="d-flex gap-10 mb-20">
+        <a href="/sport-club/admin/export_month.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff mb-10">
+            <i class="fas fa-file-excel"></i> لائحة الشهر
+        </a>
+        <a href="/sport-club/admin/export_adhesion.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff mb-10">
+            <i class="fas fa-file-excel"></i> لائحة الاشتراك
+        </a>
+        <a href="/sport-club/admin/export_assurance.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff mb-10">
+            <i class="fas fa-file-excel"></i> لائحة التأمين
+        </a>
+    </div>
+
+    <form method="POST" class="mb-20">
+        <div class="d-flex align-c gap-10">
+            <label>الشهر:</label>
+            <input type="month" name="filter_month" value="<?= htmlspecialchars($filterMonth) ?>">
+            <button type="submit" class="btn-shape bg-c-blue color-fff">بحث</button>
         </div>
     </form>
 
-    <div class="responsive-table">
-        <?php if (count($payments) > 0):
-            $total = array_sum(array_column($payments, 'amount'));
-        ?>
+    <?php if (!empty($payments)):
+        $total = array_sum(array_column($payments, 'amount'));
+    ?>
+        <div class="responsive-table">
             <table class="fs-15 w-full">
                 <thead>
                     <tr>
@@ -44,7 +63,7 @@ $payments   = $payment->getByDate($filterDate);
                         <th>المعرف</th>
                         <th>نوع الدفع</th>
                         <th>المبلغ</th>
-                        <th>التاريخ</th>
+                        <th>الشهر</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,22 +73,24 @@ $payments   = $payment->getByDate($filterDate);
                             <td><?= htmlspecialchars($p['identifier']) ?></td>
                             <td><?= htmlspecialchars($p['type']) ?></td>
                             <td><?= number_format($p['amount'], 2) ?> DH</td>
-                            <td><?= htmlspecialchars($p['Date']) ?></td>
+                            <td><?= formatPaymentDate($p['payment_date'], $arabicMonths) ?></td>
                         </tr>
                     <?php endforeach; ?>
-                    <tr style="font-weight:bold;background:#f0f0f0;">
+                </tbody>
+                <tfoot>
+                    <tr class="table-total">
                         <td colspan="3">المجموع</td>
                         <td colspan="2"><?= number_format($total, 2) ?> DH</td>
                     </tr>
-                </tbody>
+                </tfoot>
             </table>
-        <?php else: ?>
-            <p style="text-align:center;">لا توجد مدفوعات في هذا التاريخ</p>
-        <?php endif; ?>
-    </div>
+        </div>
+    <?php else: ?>
+        <p class="txt-c color-999">لا توجد مدفوعات في هذا الشهر</p>
+    <?php endif; ?>
 </div>
 
-<!-- Member accordion by sport type -->
+<!-- Payment cards by sport type -->
 <div class="absences p-20 bg-fff rad-10 m-20">
     <h2 class="mt-0 mb-20">بطاقات الدفع</h2>
     <div class="accordion-container">
@@ -78,7 +99,7 @@ $payments   = $payment->getByDate($filterDate);
             $grouped = $membersByType[$type] ?? [];
             if (empty($grouped)) continue;
         ?>
-            <div class="accordion-item m-20">
+            <div class="accordion-item">
                 <div class="accordion-header">
                     <span><?= htmlspecialchars($type) ?></span>
                     <span class="toggle-icon">›</span>
@@ -102,7 +123,7 @@ $payments   = $payment->getByDate($filterDate);
                                         <td><?= htmlspecialchars($m['date_adhesion'] ?? '') ?></td>
                                         <td>
                                             <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($m['identifier']) ?>&year=<?= date('Y') ?>"
-                                               class="btn-shape bg-c-60 color-fff p-5 rad-6 fs-12">دفع</a>
+                                               class="btn-shape bg-c-60 color-fff">دفع</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

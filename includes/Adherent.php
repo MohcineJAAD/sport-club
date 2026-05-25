@@ -88,28 +88,58 @@ class Adherent
         return $identifier;
     }
 
-    public function update($identifier, $data)
+    public function update($identifier, $data, $imagePath = '')
     {
-        $stmt = $this->conn->prepare("
-            UPDATE adherents SET nom=?, prenom=?, date_naissance=?, poids=?, type=?,
-            guardian_name=?, guardian_phone=?, address=?, health_status=?, blood_type=?, current_belt=?
-            WHERE identifier=?
-        ");
-        $stmt->bind_param(
-            "sssdssssssss",
+        $sql = "UPDATE adherents SET
+            nom=?, prenom=?, date_naissance=?, date_adhesion=?, poids=?,
+            guardian_name=?, guardian_phone=?, second_guardian_phone=?, address=?,
+            health_status=?, blood_type=?, current_belt=?, next_belt=?, licence=?, note=?";
+
+        $types  = "ssssdssssssssss";
+        $params = [
             $data['nom'],
             $data['prenom'],
-            $data['date_naissance'],
-            $data['poids'],
-            $data['type'],
-            $data['guardian_name'],
-            $data['guardian_phone'],
-            $data['address'],
-            $data['health_status'],
-            $data['blood_type'],
-            $data['current_belt'],
-            $identifier
-        );
+            $data['date_naissance'] ?: null,
+            $data['date_adhesion']  ?: null,
+            (float)($data['poids'] ?? 0),
+            $data['guardian_name']          ?? '',
+            $data['guardian_phone']         ?? '',
+            $data['second_guardian_phone']  ?? '',
+            $data['address']                ?? '',
+            $data['health_status']          ?? '',
+            $data['blood_type']             ?? '',
+            $data['current_belt']           ?? '',
+            $data['next_belt']              ?? '',
+            $data['licence']                ?? '',
+            $data['note']                   ?? '',
+        ];
+
+        if ($imagePath) {
+            $sql    .= ", image_path=?";
+            $types  .= "s";
+            $params[] = $imagePath;
+        }
+
+        if (!empty($data['BC_path'])) {
+            $sql    .= ", BC_path=?";
+            $types  .= "s";
+            $params[] = $data['BC_path'];
+        }
+
+        $sql .= " WHERE identifier=?";
+        $types  .= "s";
+        $params[] = $identifier;
+
+        $stmt = $this->conn->prepare($sql);
+
+        // bind_param requires references — splat operator does NOT work here
+        $refs = [&$types];
+        foreach ($params as &$p) {
+            $refs[] = &$p;
+        }
+        unset($p);
+        call_user_func_array([$stmt, 'bind_param'], $refs);
+
         $stmt->execute();
         $stmt->close();
     }
