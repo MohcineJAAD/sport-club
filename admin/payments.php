@@ -30,25 +30,26 @@ function formatPaymentDate($date, $months) {
 
 <!-- Payment records -->
 <div class="absences p-20 bg-fff rad-10 m-20">
-    <h2 class="mt-0 mb-20">سجل المدفوعات</h2>
-
-    <div class="d-flex gap-10 mb-20">
-        <a href="/sport-club/admin/export_month.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff mb-10">
-            <i class="fas fa-file-excel"></i> لائحة الشهر
-        </a>
-        <a href="/sport-club/admin/export_adhesion.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff mb-10">
-            <i class="fas fa-file-excel"></i> لائحة الاشتراك
-        </a>
-        <a href="/sport-club/admin/export_assurance.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff mb-10">
-            <i class="fas fa-file-excel"></i> لائحة التأمين
-        </a>
+    <div class="between-flex mb-20" style="flex-wrap: wrap; gap: 10px;">
+        <h2 class="mt-0 mb-0">سجل المدفوعات</h2>
+        <div class="d-flex" style="gap: 10px; flex-wrap: wrap;">
+            <a href="/sport-club/admin/export_month.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
+                <i class="fas fa-file-pdf"></i> لائحة الشهر
+            </a>
+            <a href="/sport-club/admin/export_adhesion.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
+                <i class="fas fa-file-pdf"></i> لائحة الاشتراك
+            </a>
+            <a href="/sport-club/admin/export_assurance.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
+                <i class="fas fa-file-pdf"></i> لائحة التأمين
+            </a>
+        </div>
     </div>
 
     <form method="POST" class="mb-20">
         <div class="d-flex align-c gap-10">
             <label>الشهر:</label>
             <input type="month" name="filter_month" value="<?= htmlspecialchars($filterMonth) ?>">
-            <button type="submit" class="btn-shape bg-c-blue color-fff">بحث</button>
+            <button type="submit" class="btn-shape bg-c-60 color-fff">بحث</button>
         </div>
     </form>
 

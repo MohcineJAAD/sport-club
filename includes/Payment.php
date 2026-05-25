@@ -159,4 +159,61 @@ class Payment {
 
         $stmt->close();
     }
+
+    public function getByYearAndType($year, $type)
+    {
+        $stmt = $this->conn->prepare("
+            SELECT payments.*, adherents.nom, adherents.prenom, adherents.type AS sport_type
+            FROM payments
+            JOIN adherents ON payments.identifier = adherents.identifier
+            WHERE YEAR(payments.payment_date) = ? AND payments.type = ?
+            ORDER BY adherents.nom, adherents.prenom
+        ");
+        $stmt->bind_param("is", $year, $type);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function getUnpaidByMonth($month)
+    {
+        $stmt = $this->conn->prepare("
+            SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
+                a.guardian_name, a.guardian_phone
+            FROM adherents a
+            WHERE a.status = 'active'
+            AND a.identifier NOT IN (
+                SELECT p.identifier FROM payments p
+                WHERE DATE_FORMAT(p.payment_date, '%Y-%m') = ?
+                    AND p.type = 'mois'
+            )
+            ORDER BY a.nom, a.prenom
+        ");
+        $stmt->bind_param("s", $month);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function getUnpaidByYearAndType($year, $type)
+    {
+        $stmt = $this->conn->prepare("
+            SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
+                a.guardian_name, a.guardian_phone
+            FROM adherents a
+            WHERE a.status = 'active'
+            AND a.identifier NOT IN (
+                SELECT p.identifier FROM payments p
+                WHERE YEAR(p.payment_date) = ? AND p.type = ?
+            )
+            ORDER BY a.nom, a.prenom
+        ");
+        $stmt->bind_param("is", $year, $type);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
 }
