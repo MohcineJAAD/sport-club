@@ -61,16 +61,15 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 /* ── A4 page ── */
 .exam-page {
     width: 210mm;
-    min-height: 297mm;
-    max-height: 297mm;
+    height: 297mm;
     overflow: hidden;
     margin: 10px auto;
-    padding: 4mm 5mm;
+    padding: 8mm 10mm;
     background: #fff;
     page-break-after: always;
     page-break-inside: avoid;
-    font-size: 10.5px;
-    line-height: 1.25;
+    font-size: 14px;
+    line-height: 1.4;
     display: flex;
     flex-direction: column;
 }
@@ -84,11 +83,11 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
     direction: rtl;
 }
 .header-table td { padding: 1px 3px; vertical-align: middle; }
-.fed-name  { font-size: 13.5px; font-weight: bold; text-align: center; }
-.lgue-name { font-size: 11.5px; font-weight: bold; text-align: center; }
-.sess-name { font-size: 11px;   font-weight: bold; text-align: center; }
-.member-photo { width: 70px; height: 85px; object-fit: cover; display: block; border: 1px solid #ccc; }
-.league-logo  { width: 65px; height: 65px; object-fit: contain; display: block; margin: auto; }
+.fed-name  { font-size: 16px; font-weight: bold; text-align: center; }
+.lgue-name { font-size: 14px; font-weight: bold; text-align: center; }
+.sess-name { font-size: 13px;   font-weight: bold; text-align: center; }
+.member-photo { width: 90px; height: 110px; object-fit: cover; display: block; border: 1px solid #ccc; }
+.league-logo  { width: 85px; height: 85px; object-fit: contain; display: block; margin: auto; }
 
 /* ── Shared table styles ── */
 .t {
@@ -99,7 +98,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 }
 .t td, .t th {
     border: 1px solid #000;
-    padding: 1px 3px;
+    padding: 3px 5px;
     vertical-align: middle;
     text-align: center;
 }
@@ -133,14 +132,14 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 /* ── Two-column layout ── */
 .two-col {
     display: flex;
-    gap: 2mm;
+    gap: 3mm;
     margin-bottom: 1.5mm;
 }
 .two-col > * { flex: 1; min-width: 0; }
 
 /* ── Candidate info row ── */
-.info-table { margin-bottom: 1.5mm; }
-.info-table td { height: 19px; }
+.info-table { margin-bottom: 3mm; }
+.info-table td { height: 26px; }
 
 /* ── Poomse (full width) ── */
 .poomse-wrap { margin-bottom: 1.5mm; }
@@ -152,7 +151,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 .singles-wrap {
     display: flex;
     gap: 2mm;
-    margin-bottom: 1.5mm;
+    margin-bottom: 3mm;
 }
 .singles-wrap > * { flex: 1; }
 
@@ -169,13 +168,13 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
     border: 2px solid #000 !important;
     font-weight: bold;
     font-size: 12px;
-    height: 24px;
+    height: 32px;
 }
 .sign-row td {
     font-weight: bold;
     font-size: 11px;
     text-align: center;
-    height: 30px;
+    height: 45px;
     vertical-align: bottom;
     padding-bottom: 5px;
 }
@@ -285,20 +284,6 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 
     <!-- ══ ROW 2: الأسئلة الشفوية  |  تقنيات المباراة ══ -->
     <div class="two-col">
-        <!-- الأسئلة الشفوية -->
-        <table class="t">
-            <tr><td class="sec-hdr" colspan="3">الأسئلة الشفوية</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">سؤال 1</td>
-                <td class="sc" style="width:25%">1</td>
-                <td style="width:35%"></td>
-            </tr>
-            <tr><td class="lbl">سؤال 2</td><td class="sc">1</td><td></td></tr>
-            <tr><td class="lbl">سؤال 3</td><td class="sc">1</td><td></td></tr>
-            <tr><td class="lbl">سؤال 4</td><td class="sc">1</td><td></td></tr>
-            <tr class="tot"><td>المجموع</td><td colspan="2">/04</td></tr>
-        </table>
-
         <!-- تقنيات المباراة (الكيوروكي) -->
         <table class="t">
             <tr><td class="sec-hdr" colspan="3">تقنيات المباراة (الكيوروكي)</td></tr>
@@ -312,10 +297,41 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
             <tr><td class="lbl">المضرب (راكيط)</td><td class="sc">1</td><td></td></tr>
             <tr class="tot"><td>المجموع</td><td colspan="2">/04</td></tr>
         </table>
+        <!-- الأسئلة الشفوية -->
+        <table class="t">
+            <tr><td class="sec-hdr" colspan="3">الأسئلة الشفوية</td></tr>
+            <tr>
+                <td class="lbl" style="width:40%">سؤال 1</td>
+                <td class="sc" style="width:25%">1</td>
+                <td style="width:35%"></td>
+            </tr>
+            <tr><td class="lbl">سؤال 2</td><td class="sc">1</td><td></td></tr>
+            <tr><td class="lbl">سؤال 3</td><td class="sc">1</td><td></td></tr>
+            <tr><td class="lbl">سؤال 4</td><td class="sc">1</td><td></td></tr>
+            <tr class="tot"><td>المجموع</td><td colspan="2">/04</td></tr>
+        </table>
     </div>
+    
 
     <!-- ══ ROW 3: الدفاع عن النفس  |  البومسي ══ -->
     <div class="two-col bottom-wrap">
+        <!-- البومسي -->
+        <table class="t">
+            <tr><td class="sec-hdr" colspan="3">البومسي</td></tr>
+            <tr>
+                <td class="lbl" style="width:40%">الوضعيات</td>
+                <td class="sc" style="width:25%">5</td>
+                <td style="width:35%"></td>
+            </tr>
+            <tr><td class="lbl">حركات اليدين</td><td class="sc">5</td><td></td></tr>
+            <tr><td class="lbl">حركات الأرجل</td><td class="sc">5</td><td></td></tr>
+            <tr><td class="lbl">النظرة</td><td class="sc">5</td><td></td></tr>
+            <tr><td class="lbl">السرعة</td><td class="sc">5</td><td></td></tr>
+            <tr><td class="lbl">القوة</td><td class="sc">5</td><td></td></tr>
+            <tr><td class="lbl">نقطة الرجوع</td><td class="sc">5</td><td></td></tr>
+            <tr><td class="lbl">الصيحة (كيهاب)</td><td class="sc">5</td><td></td></tr>
+            <tr class="tot"><td>المجموع</td><td colspan="2">/40</td></tr>
+        </table>
         <!-- الدفاع عن النفس (الهوشينسول) -->
         <table class="t">
             <tr><td class="sec-hdr" colspan="3">الدفاع عن النفس (الهوشينسول)</td></tr>
@@ -335,24 +351,6 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
             <tr><td class="lbl">مع التلاميذ</td><td class="sc">4</td><td></td></tr>
             <tr><td class="lbl">الحضور</td><td class="sc">4</td><td></td></tr>
             <tr class="tot"><td>المجموع</td><td colspan="2">/12</td></tr>
-        </table>
-
-        <!-- البومسي -->
-        <table class="t">
-            <tr><td class="sec-hdr" colspan="3">البومسي</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">الوضعيات</td>
-                <td class="sc" style="width:25%">5</td>
-                <td style="width:35%"></td>
-            </tr>
-            <tr><td class="lbl">حركات اليدين</td><td class="sc">5</td><td></td></tr>
-            <tr><td class="lbl">حركات الأرجل</td><td class="sc">5</td><td></td></tr>
-            <tr><td class="lbl">النظرة</td><td class="sc">5</td><td></td></tr>
-            <tr><td class="lbl">السرعة</td><td class="sc">5</td><td></td></tr>
-            <tr><td class="lbl">القوة</td><td class="sc">5</td><td></td></tr>
-            <tr><td class="lbl">نقطة الرجوع</td><td class="sc">5</td><td></td></tr>
-            <tr><td class="lbl">الصيحة (كيهاب)</td><td class="sc">5</td><td></td></tr>
-            <tr class="tot"><td>المجموع</td><td colspan="2">/40</td></tr>
         </table>
     </div>
 

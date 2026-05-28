@@ -33,16 +33,21 @@ $currentSession = $_GET['session'] ?? $sessions[0];
     <form method="POST" action="/sport-club/admin/export_exam.php" id="exam-form">
         <input type="hidden" name="session" id="sessionInput" value="<?= htmlspecialchars($currentSession) ?>">
 
+        <div class="options w-full mb-10">
+            <input type="text" id="search" placeholder="بحث بالاسم أو المعرف..."
+                   style="padding:8px 14px;border:1px solid #ccc;border-radius:8px;font-size:15px;width:280px;margin-bottom:10px;">
+        </div>
+
         <div class="responsive-table">
-            <table class="fs-15 w-full" id="exam-list">
+            <table class="fs-15 w-full" id="adherent-list">
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="select-all" style="width:20px;height:20px;cursor:pointer;"></th>
                         <th>الاسم الكامل</th>
                         <th>المعرف</th>
-                        <th>الحزام الحالي</th>
-                        <th>الحزام التالي</th>
-                        <th>الوزن</th>
+                        <th>تاريخ الازدياد</th>
+                        <th>الرياضة</th>
+                        <th>تاريخ الانخراط</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,9 +63,9 @@ $currentSession = $_GET['session'] ?? $sessions[0];
                             </td>
                             <td><?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?></td>
                             <td><?= htmlspecialchars($m['identifier']) ?></td>
-                            <td><?= htmlspecialchars($m['current_belt'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($m['next_belt'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($m['poids'] ?? '') ?> كغ</td>
+                            <td><?= htmlspecialchars($m['date_naissance'] ?? '') ?></td>
+                            <td><?= htmlspecialchars($m['type'] ?? '') ?></td>
+                            <td><?= htmlspecialchars($m['date_adhesion'] ?? '') ?></td>
                         </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -76,7 +81,7 @@ $currentSession = $_GET['session'] ?? $sessions[0];
 
 <script>
 document.getElementById('select-all').addEventListener('change', function () {
-    document.querySelectorAll('#exam-list tbody input[type="checkbox"]')
+    document.querySelectorAll('#adherent-list tbody input[type="checkbox"]')
             .forEach(cb => cb.checked = this.checked);
 });
 
@@ -85,7 +90,7 @@ document.getElementById('sessionPicker').addEventListener('change', function () 
 });
 
 function submitExam() {
-    const checked = document.querySelectorAll('#exam-list tbody input[type="checkbox"]:checked');
+    const checked = document.querySelectorAll('#adherent-list tbody input[type="checkbox"]:checked');
     if (checked.length === 0) {
         alert('يرجى اختيار مرشح واحد على الأقل');
         return;
