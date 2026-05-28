@@ -3,117 +3,132 @@ require_once '../vendor/autoload.php';
 require_once '../config/database.php';
 Auth::check();
 
-$evaluation = new Evaluation($conn);
-$adherent   = new Adherent($conn);
-$plan       = new Plan($conn);
+$evaluation  = new Evaluation($conn);
+$adherent    = new Adherent($conn);
+$plan        = new Plan($conn);
 
-$members     = $adherent->getAll('active');
-$plans       = $plan->getNames();
-$filterMonth = (int) ($_POST['month'] ?? date('n'));
-$filterYear  = (int) ($_POST['year']  ?? date('Y'));
-$results     = $evaluation->getByMonth($filterMonth, $filterYear);
+$members      = $adherent->getAll('active');
+$plans        = $plan->getNames();
+$latestEvals  = $evaluation->getLatestAll();
+
+$currentMonth = (int) date('n');
+$currentYear  = (int) date('Y');
 ?>
 <?php require 'layout/header.php'; ?>
 
 <h1 class="p-relative">التقييمات</h1>
 
-<!-- Save evaluation -->
 <div class="absences p-20 bg-fff rad-10 m-20">
-    <h2 class="mt-0 mb-20">إضافة تقييم</h2>
-    <form method="POST" action="/sport-club/actions/evaluation_save.php">
-        <div class="section mb-20">
-            <div class="row">
-                <div class="input-field">
-                    <label>المشترك</label>
-                    <select name="identifier" required>
-                        <option value="">-- اختر المشترك --</option>
-                        <?php foreach ($members as $m): ?>
-                            <option value="<?= htmlspecialchars($m['identifier']) ?>">
-                                <?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="input-field">
-                    <label>الشهر</label>
-                    <select name="month" required>
-                        <?php for ($i = 1; $i <= 12; $i++): ?>
-                            <option value="<?= $i ?>" <?= $i == date('n') ? 'selected' : '' ?>>
-                                <?= $i ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-                <div class="input-field">
-                    <label>السنة</label>
-                    <input type="number" name="year" value="<?= date('Y') ?>" required>
-                </div>
-            </div>
-            <div class="row mt-20">
-                <div class="input-field">
-                    <label>الانضباط (0-10)</label>
-                    <input type="number" name="discipline" min="0" max="10" required>
-                </div>
-                <div class="input-field">
-                    <label>الأداء (0-10)</label>
-                    <input type="number" name="performance" min="0" max="10" required>
-                </div>
-                <div class="input-field">
-                    <label>السلوك (0-10)</label>
-                    <input type="number" name="behavior" min="0" max="10" required>
-                </div>
+    <h2 class="mt-0 mb-20">المشتركين</h2>
+    <div class="responsive-table special">
+        <div class="options w-full">
+            <div class="branch-filter mt-10 mb-10">
+                <button class="btn-shape bg-c-60 color-fff active mb-10" data-branch="all">الكل</button>
+                <?php foreach ($plans as $p): ?>
+                    <button class="btn-shape bg-c-60 color-fff mb-10" data-branch="<?= htmlspecialchars($p['name']) ?>">
+                        <?= htmlspecialchars($p['name']) ?>
+                    </button>
+                <?php endforeach; ?>
             </div>
         </div>
-        <button type="submit" class="btn mt-10">حفظ التقييم</button>
-    </form>
-</div>
-
-<!-- Filter evaluations -->
-<div class="absences p-20 bg-fff rad-10 m-20">
-    <h2 class="mt-0 mb-20">سجل التقييمات</h2>
-    <form method="POST">
-        <div class="form-group d-flex align-c gap-10 mb-20">
-            <label>الشهر:</label>
-            <select name="month">
-                <?php for ($i = 1; $i <= 12; $i++): ?>
-                    <option value="<?= $i ?>" <?= $i == $filterMonth ? 'selected' : '' ?>><?= $i ?></option>
-                <?php endfor; ?>
-            </select>
-            <label>السنة:</label>
-            <input type="number" name="year" value="<?= $filterYear ?>" style="width:90px;">
-            <button type="submit" class="btn">بحث</button>
-        </div>
-    </form>
-
-    <div class="responsive-table">
-        <?php if (count($results) > 0): ?>
-            <table class="fs-15 w-full">
-                <thead>
-                    <tr>
-                        <th>الاسم الكامل</th>
-                        <th>الانضباط</th>
-                        <th>الأداء</th>
-                        <th>السلوك</th>
-                        <th>المعدل</th>
+        <table class="fs-15 w-full" id="eval-list">
+            <thead>
+                <tr>
+                    <th>الاسم الكامل</th>
+                    <th>الرياضة</th>
+                    <th>الانضباط</th>
+                    <th>الأداء الرياضي</th>
+                    <th>السلوك</th>
+                    <th>الإجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($members as $m): ?>
+                    <?php
+                    $eval        = $latestEvals[$m['identifier']] ?? null;
+                    $discipline  = min((int) ($eval['discipline']  ?? 0), 5);
+                    $performance = min((int) ($eval['performance'] ?? 0), 5);
+                    $behavior    = min((int) ($eval['behavior']    ?? 0), 5);
+                    ?>
+                    <form action="/sport-club/actions/evaluation_save.php" method="post">
+                    <tr data-branch="<?= htmlspecialchars($m['type']) ?>">
+                        <td><?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?></td>
+                        <td><?= htmlspecialchars($m['type']) ?></td>
+                        <td>
+                            <?php for ($i = 0; $i < 5; $i++): ?>
+                                <i class="<?= $i < $discipline ? 'fa-solid' : 'fa-regular' ?> fa-star" data-index="<?= $i ?>"></i>
+                            <?php endfor; ?>
+                            <input type="hidden" name="discipline" value="<?= $discipline ?>">
+                        </td>
+                        <td>
+                            <?php for ($i = 0; $i < 5; $i++): ?>
+                                <i class="<?= $i < $performance ? 'fa-solid' : 'fa-regular' ?> fa-star" data-index="<?= $i ?>"></i>
+                            <?php endfor; ?>
+                            <input type="hidden" name="performance" value="<?= $performance ?>">
+                        </td>
+                        <td>
+                            <?php for ($i = 0; $i < 5; $i++): ?>
+                                <i class="<?= $i < $behavior ? 'fa-solid' : 'fa-regular' ?> fa-star" data-index="<?= $i ?>"></i>
+                            <?php endfor; ?>
+                            <input type="hidden" name="behavior" value="<?= $behavior ?>">
+                        </td>
+                        <td>
+                            <input type="hidden" name="identifier" value="<?= htmlspecialchars($m['identifier']) ?>">
+                            <input type="hidden" name="month" value="<?= $currentMonth ?>">
+                            <input type="hidden" name="year" value="<?= $currentYear ?>">
+                            <button type="submit" class="btn-shape bg-c-60 color-fff">حفظ</button>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($results as $r): ?>
-                        <?php $avg = round(($r['discipline'] + $r['performance'] + $r['behavior']) / 3, 1); ?>
-                        <tr>
-                            <td><?= htmlspecialchars($r['prenom'] . ' ' . $r['nom']) ?></td>
-                            <td><?= $r['discipline'] ?>/10</td>
-                            <td><?= $r['performance'] ?>/10</td>
-                            <td><?= $r['behavior'] ?>/10</td>
-                            <td><strong><?= $avg ?>/10</strong></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p style="text-align:center;">لا توجد تقييمات لهذا الشهر</p>
-        <?php endif; ?>
+                    </form>
+                <?php endforeach; ?>
+                <tr class="no-results" style="display:none;">
+                    <td colspan="6">لا توجد نتائج</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 
 <?php require 'layout/footer.php'; ?>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const branchButtons = document.querySelectorAll(".branch-filter button");
+    const rows          = document.querySelectorAll("#eval-list tbody tr[data-branch]");
+    const noResultsRow  = document.querySelector("#eval-list tbody .no-results");
+
+    branchButtons.forEach(button => {
+        button.addEventListener("click", function () {
+            branchButtons.forEach(btn => btn.classList.remove("active"));
+            button.classList.add("active");
+
+            const branch = button.getAttribute("data-branch");
+            let hasVisible = false;
+
+            rows.forEach(row => {
+                const match = branch === "all" || row.getAttribute("data-branch") === branch;
+                row.style.display = match ? "" : "none";
+                if (match) hasVisible = true;
+            });
+
+            noResultsRow.style.display = hasVisible ? "none" : "";
+        });
+    });
+
+    document.querySelectorAll("#eval-list tbody td").forEach(td => {
+        const stars  = td.querySelectorAll(".fa-star");
+        const hidden = td.querySelector("input[type='hidden']");
+        if (!stars.length || !hidden) return;
+
+        stars.forEach((star, index) => {
+            star.addEventListener("click", function () {
+                stars.forEach((s, i) => {
+                    s.classList.toggle("fa-solid",  i <= index);
+                    s.classList.toggle("fa-regular", i > index);
+                });
+                hidden.value = index + 1;
+            });
+        });
+    });
+});
+</script>

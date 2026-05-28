@@ -64,4 +64,27 @@ class Evaluation {
         $stmt->close();
         return $result->fetch_assoc();
     }
+
+    public function getLatestAll()
+    {
+        $stmt = $this->conn->prepare("
+            SELECT e.*
+            FROM evaluations e
+            INNER JOIN (
+                SELECT identifier, MAX(year * 100 + month) AS ym
+                FROM evaluations
+                GROUP BY identifier
+            ) latest ON e.identifier = latest.identifier
+                AND (e.year * 100 + e.month) = latest.ym
+        ");
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
+        $keyed = [];
+        foreach ($rows as $row) {
+            $keyed[$row['identifier']] = $row;
+        }
+        return $keyed;
+    }
 }

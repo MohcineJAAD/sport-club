@@ -47,4 +47,21 @@ class Schedule {
         $stmt->execute();
         $stmt->close();
     }
+    public function replaceAll($grid)
+    {
+        $stmt = $this->conn->prepare("DELETE FROM schedule");
+        $stmt->execute();
+        $stmt->close();
+
+        $stmt = $this->conn->prepare("INSERT INTO schedule (day, timeslot, sport_type) VALUES (?, ?, ?)");
+        foreach ($grid as $day => $slots) {
+            foreach ($slots as $timeslot => $sport_type) {
+                if (!empty($sport_type)) {
+                    $stmt->bind_param("sss", $day, $timeslot, $sport_type);
+                    $stmt->execute();
+                }
+            }
+        }
+        $stmt->close();
+    }
 }

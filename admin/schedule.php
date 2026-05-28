@@ -4,75 +4,86 @@ require_once '../config/database.php';
 Auth::check();
 
 $schedule  = new Schedule($conn);
-$schedules = $schedule->getAll();
-$days      = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+$plan      = new Plan($conn);
+$plans     = $plan->getNames();
+
+$days = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+$timeslots = [
+    '16:30-17:30',
+    '17:30-18:30',
+    '18:30-19:30',
+    '19:30-20:30',
+    '20:30-21:30',
+    '21:30-22:30',
+    '22:30-23:30',
+];
+
+$existing = $schedule->getAll();
+$grid = [];
+foreach ($existing as $row) {
+    $grid[$row['day']][$row['timeslot']] = $row['sport_type'];
+}
 ?>
 <?php require 'layout/header.php'; ?>
 
 <h1 class="p-relative">الجدول الزمني</h1>
 
-<!-- Add schedule -->
 <div class="absences p-20 bg-fff rad-10 m-20">
-    <h2 class="mt-0 mb-20">إضافة حصة</h2>
-    <form method="POST" action="/sport-club/actions/schedule_save.php">
-        <div class="section mb-20">
-            <div class="row">
-                <div class="input-field">
-                    <label>اليوم</label>
-                    <select name="day" required>
-                        <option value="">-- اختر اليوم --</option>
-                        <?php foreach ($days as $day): ?>
-                            <option value="<?= $day ?>"><?= $day ?></option>
+    <form class="horaire responsive-table special" method="POST" action="/sport-club/actions/schedule_save.php">
+        <table>
+            <thead>
+                <tr>
+                    <th>اليوم / الوقت</th>
+                    <?php foreach ($timeslots as $slot): ?>
+                        <th><?= $slot ?></th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($days as $day): ?>
+                    <tr>
+                        <th><?= $day ?></th>
+                        <?php foreach ($timeslots as $slot): ?>
+                            <td>
+                                <select name="sport[<?= htmlspecialchars($day) ?>][<?= htmlspecialchars($slot) ?>]" class="sport" disabled>
+                                    <option value="">--</option>
+                                    <?php foreach ($plans as $p): ?>
+                                        <option value="<?= htmlspecialchars($p['name']) ?>"
+                                            <?= ($grid[$day][$slot] ?? '') === $p['name'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($p['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
                         <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="input-field">
-                    <label>التوقيت</label>
-                    <input type="text" name="timeslot" placeholder="مثال: 10:00 - 11:00" required>
-                </div>
-                <div class="input-field">
-                    <label>نوع الرياضة</label>
-                    <input type="text" name="sport_type" placeholder="مثال: تايكواندو" required>
-                </div>
-            </div>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <div class="action-buttons mt-20">
+            <button type="button" class="btn-shape modify-btn mb-10">
+                <i class="fas fa-edit"></i> تعديل
+            </button>
+            <button type="submit" class="btn-shape save-btn hidden mb-10">
+                <i class="fas fa-save"></i> حفظ
+            </button>
         </div>
-        <button type="submit" class="btn mt-10">إضافة</button>
     </form>
 </div>
 
-<!-- Schedule list -->
-<div class="absences p-20 bg-fff rad-10 m-20">
-    <h2 class="mt-0 mb-20">الجدول الحالي</h2>
-    <div class="responsive-table">
-        <?php if (count($schedules) > 0): ?>
-            <table class="fs-15 w-full">
-                <thead>
-                    <tr>
-                        <th>اليوم</th>
-                        <th>التوقيت</th>
-                        <th>الرياضة</th>
-                        <th>إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($schedules as $s): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($s['day']) ?></td>
-                            <td><?= htmlspecialchars($s['timeslot']) ?></td>
-                            <td><?= htmlspecialchars($s['sport_type']) ?></td>
-                            <td>
-                                <a href="/sport-club/actions/schedule_delete.php?id=<?= $s['id'] ?>">
-                                    <span class="label btn-shape bg-f00">حذف</span>
-                                </a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p style="text-align:center;">لا توجد حصص مضافة</p>
-        <?php endif; ?>
-    </div>
-</div>
+<script>
+const editBtn = document.querySelector('.modify-btn');
+const saveBtn = document.querySelector('.save-btn');
+const selects = document.querySelectorAll('.sport');
+
+editBtn.addEventListener('click', function () {
+    selects.forEach(s => {
+        s.disabled = false;
+        s.classList.add('editable');
+    });
+    editBtn.classList.add('hidden');
+    saveBtn.classList.remove('hidden');
+});
+</script>
 
 <?php require 'layout/footer.php'; ?>

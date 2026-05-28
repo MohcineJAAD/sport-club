@@ -93,8 +93,8 @@ $months = [
 <script>
 document.querySelector('.modify-btn').addEventListener('click', function () {
     document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = false);
-    this.style.display = 'none';
-    document.querySelector('.save-btn').style.display = '';
+    this.classList.add('hidden');
+    document.querySelector('.save-btn').classList.remove('hidden');
 });
 
 document.querySelector('form').addEventListener('submit', function () {

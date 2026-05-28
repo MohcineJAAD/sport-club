@@ -44,18 +44,19 @@ class Attendance
 
     public function save($identifiers, $date)
     {
-        $stmt = $this->conn->prepare(
-            "
-            insert ignore into attendance (identifier, date)
-            values (?, ?)
-            "
-        );
-        foreach ($identifiers as $identifier)
-        {
-            $stmt->bind_param('ss', $identifier, $date);
-            $stmt->execute();
-        }
+        $stmt = $this->conn->prepare("DELETE FROM attendance WHERE date = ?");
+        $stmt->bind_param("s", $date);
+        $stmt->execute();
         $stmt->close();
+
+        if (!empty($identifiers)) {
+            $stmt = $this->conn->prepare("INSERT INTO attendance (identifier, date) VALUES (?, ?)");
+            foreach ($identifiers as $identifier) {
+                $stmt->bind_param("ss", $identifier, $date);
+                $stmt->execute();
+            }
+            $stmt->close();
+        }
     }
 
     public function getMonthlySummary()
@@ -93,5 +94,15 @@ class Attendance
         } else {
             return ['label' => 'منتظم',             'color' => '#1a7a3a', 'bg' => '#eafaf1'];
         }
+    }
+
+    public function getByDate($date)
+    {
+        $stmt = $this->conn->prepare("SELECT identifier FROM attendance WHERE date = ?");
+        $stmt->bind_param("s", $date);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return array_column($result->fetch_all(MYSQLI_ASSOC), 'identifier');
     }
 }

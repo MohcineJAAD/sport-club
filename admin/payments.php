@@ -30,27 +30,28 @@ function formatPaymentDate($date, $months) {
 
 <!-- Payment records -->
 <div class="absences p-20 bg-fff rad-10 m-20">
-    <div class="between-flex mb-20" style="flex-wrap: wrap; gap: 10px;">
-        <h2 class="mt-0 mb-0">سجل المدفوعات</h2>
-        <div class="d-flex" style="gap: 10px; flex-wrap: wrap;">
+
+    <div class="section-header">
+        <h2>سجل المدفوعات</h2>
+        <div class="export-btns">
             <a href="/sport-club/admin/export_month.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
-                <i class="fas fa-file-pdf"></i> لائحة الشهر
+                <i class="fas fa-file-pdf"></i> المتأخرون عن الواجب الشهري
             </a>
             <a href="/sport-club/admin/export_adhesion.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
-                <i class="fas fa-file-pdf"></i> لائحة الاشتراك
+                <i class="fas fa-file-pdf"></i> المتأخرون عن الانخراط السنوي
             </a>
             <a href="/sport-club/admin/export_assurance.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
-                <i class="fas fa-file-pdf"></i> لائحة التأمين
+                <i class="fas fa-file-pdf"></i> المتأخرون عن التأمين
             </a>
         </div>
     </div>
 
-    <form method="POST" class="mb-20">
-        <div class="d-flex align-c gap-10">
-            <label>الشهر:</label>
-            <input type="month" name="filter_month" value="<?= htmlspecialchars($filterMonth) ?>">
-            <button type="submit" class="btn-shape bg-c-60 color-fff">بحث</button>
-        </div>
+    <form method="POST" class="mb-20 filter-form">
+        <label for="filter_month">الشهر:</label>
+        <input type="month" id="filter_month" name="filter_month"
+               class="filter-input"
+               value="<?= htmlspecialchars($filterMonth) ?>">
+        <button type="submit" class="btn">بحث</button>
     </form>
 
     <?php if (!empty($payments)):
@@ -87,50 +88,62 @@ function formatPaymentDate($date, $months) {
             </table>
         </div>
     <?php else: ?>
-        <p class="txt-c color-999">لا توجد مدفوعات في هذا الشهر</p>
+        <p class="txt-c color-aaa">لا توجد مدفوعات في هذا الشهر</p>
     <?php endif; ?>
+
 </div>
 
-<!-- Payment cards by sport type -->
+<!-- Payment cards by sport -->
 <div class="absences p-20 bg-fff rad-10 m-20">
     <h2 class="mt-0 mb-20">بطاقات الدفع</h2>
     <div class="accordion-container">
-        <?php foreach ($plans as $p):
+        <?php foreach ($plans as $index => $p):
             $type    = $p['name'];
             $grouped = $membersByType[$type] ?? [];
-            if (empty($grouped)) continue;
+            $tableId = 'sport-table-' . $index;
         ?>
             <div class="accordion-item">
                 <div class="accordion-header">
-                    <span><?= htmlspecialchars($type) ?></span>
+                    <span>
+                        <?= htmlspecialchars($type) ?>
+                        <span class="sport-badge"><?= count($grouped) ?></span>
+                    </span>
                     <span class="toggle-icon">›</span>
                 </div>
                 <div class="accordion-content">
-                    <div class="responsive-table">
-                        <table class="fs-15 w-full">
-                            <thead>
-                                <tr>
-                                    <th>الاسم الكامل</th>
-                                    <th>المعرف</th>
-                                    <th>تاريخ الانخراط</th>
-                                    <th>بطاقة الدفع</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($grouped as $m): ?>
+                    <?php if (!empty($grouped)): ?>
+                        <input type="text"
+                               class="accordion-search"
+                               placeholder="ابحث عن مشترك بالاسم أو المعرف..."
+                               data-table="<?= $tableId ?>">
+                        <div class="responsive-table">
+                            <table class="fs-15 w-full" id="<?= $tableId ?>">
+                                <thead>
                                     <tr>
-                                        <td><?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?></td>
-                                        <td><?= htmlspecialchars($m['identifier']) ?></td>
-                                        <td><?= htmlspecialchars($m['date_adhesion'] ?? '') ?></td>
-                                        <td>
-                                            <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($m['identifier']) ?>&year=<?= date('Y') ?>"
-                                               class="btn-shape bg-c-60 color-fff">دفع</a>
-                                        </td>
+                                        <th>الاسم الكامل</th>
+                                        <th>المعرف</th>
+                                        <th>تاريخ الانخراط</th>
+                                        <th>بطاقة الدفع</th>
                                     </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($grouped as $m): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?></td>
+                                            <td><?= htmlspecialchars($m['identifier']) ?></td>
+                                            <td><?= htmlspecialchars($m['date_adhesion'] ?? '') ?></td>
+                                            <td>
+                                                <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($m['identifier']) ?>&year=<?= date('Y') ?>"
+                                                   class="btn-shape bg-c-60 color-fff">دفع</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p class="txt-c color-aaa p-10">لا يوجد مشتركون نشطون في هذه الرياضة</p>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -151,6 +164,17 @@ document.querySelectorAll('.accordion-header').forEach(header => {
             content.classList.add('open');
             icon.classList.add('rotate');
         }
+    });
+});
+
+document.querySelectorAll('.accordion-search').forEach(input => {
+    input.addEventListener('input', function () {
+        const query   = this.value.trim().toLowerCase();
+        const tableId = this.dataset.table;
+        const tbody   = document.getElementById(tableId).querySelector('tbody');
+        tbody.querySelectorAll('tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
     });
 });
 </script>

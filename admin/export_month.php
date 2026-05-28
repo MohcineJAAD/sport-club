@@ -26,18 +26,26 @@ $monthLabel   = $arabicMonths[(int)$mon] . ' ' . $year;
         .btn { padding: 10px 25px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; }
         .btn-primary { background: #203a85; color: white; }
         .btn-secondary { background: #666; color: white; }
-        .report-header { text-align: center; margin-bottom: 25px; border-bottom: 3px solid #c0392b; padding-bottom: 15px; }
+        .report-header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #203a85; padding-bottom: 15px; }
         .report-header h2 { color: #203a85; font-size: 22px; margin-bottom: 6px; }
-        .report-header h3 { color: #c0392b; font-size: 16px; font-weight: bold; }
+        .report-header h3 { color: #555; font-size: 16px; font-weight: normal; }
         .report-meta { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 13px; color: #666; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px 14px; border: 1px solid #ddd; text-align: center; }
-        th { background-color: #c0392b; color: white; font-weight: bold; }
-        tbody tr:nth-child(even) { background-color: #fdf2f2; }
-        tbody tr:hover { background-color: #fce4e4; }
-        tfoot td { background-color: #c0392b; color: white; font-weight: bold; }
+        th { background-color: #203a85; color: white; font-weight: bold; }
+        tbody tr:nth-child(even) { background-color: #f8f8f8; }
+        tbody tr:hover { background-color: #eef2ff; }
+        tfoot td { background-color: #203a85; color: white; font-weight: bold; }
         .empty { text-align: center; padding: 30px; color: #27ae60; font-size: 16px; border: 2px solid #27ae60; border-radius: 5px; margin-top: 10px; }
-        @media print { .no-print { display: none !important; } body { padding: 10px; } }
+
+        @page {
+            margin: 0;
+            size: A4;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { padding: 1.5cm; }
+        }
     </style>
 </head>
 <body>

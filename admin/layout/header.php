@@ -54,6 +54,14 @@ $club = $conn->query("SELECT logo, club_name FROM admin LIMIT 1")->fetch_assoc()
                     <span class="fs-14 ml-10">التقييم</span>
                 </a>
             </li>
+                </a>
+            </li>
+            <li>
+                <a href="/sport-club/admin/exam.php" class="<?= $current_page == 'exam.php' ? 'active' : '' ?> d-flex align-c fs-14 color-000 rad-6 p-10">
+                    <i class="fa-solid fa-graduation-cap fa-fw ml-5"></i>
+                    <span class="fs-14 ml-10">الامتحان</span>
+                </a>
+            </li>
             <li>
                 <a href="/sport-club/admin/absence.php" class="<?= $current_page == 'absence.php' ? 'active' : '' ?> d-flex align-c fs-14 color-000 rad-6 p-10">
                     <i class="fa-solid fa-calendar-xmark fa-fw ml-5"></i>

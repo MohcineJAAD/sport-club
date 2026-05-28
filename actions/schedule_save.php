@@ -8,21 +8,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-$day        = trim($_POST['day']        ?? '');
-$timeslot   = trim($_POST['timeslot']   ?? '');
-$sport_type = trim($_POST['sport_type'] ?? '');
-
-if (empty($day) || empty($timeslot) || empty($sport_type)) {
-    $_SESSION['message'] = "يرجى ملء جميع الحقول";
-    $_SESSION['status']  = "error";
-    header("Location: /sport-club/admin/schedule.php");
-    exit();
-}
-
+$grid     = $_POST['sport'] ?? [];
 $schedule = new Schedule($conn);
-$schedule->add($day, $timeslot, $sport_type);
+$schedule->replaceAll($grid);
 
-$_SESSION['message'] = "تمت إضافة الحصة بنجاح";
+$_SESSION['message'] = "تم حفظ الجدول بنجاح";
 $_SESSION['status']  = "success";
 header("Location: /sport-club/admin/schedule.php");
 exit();
