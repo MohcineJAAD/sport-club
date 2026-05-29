@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-$ids     = $_POST['candidates'] ?? [];
+$ids     = $_POST['adherent'] ?? [];
 $session = trim($_POST['session'] ?? 'يناير');
 
 $adherentObj = new Adherent($conn);
@@ -19,7 +19,10 @@ foreach ($ids as $id) {
 }
 if (empty($members)) { header("Location: /sport-club/admin/exam.php"); exit(); }
 
-$year = date('Y');
+$year     = date('Y');
+$adminRow = $conn->query("SELECT club_name FROM admin LIMIT 1")->fetch_assoc();
+$clubName = htmlspecialchars($adminRow['club_name'] ?? '');
+
 $belts = [
     'أبيض','أصفر بخط أبيض','أصفر','برتقالي','أخضر',
     'أزرق','أزرق بخط أحمر','أحمر','أحمر بخط أسود','أحمر بخطين أسودين'
@@ -79,13 +82,13 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 .header-table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 2mm;
+    margin-bottom: 3mm;
     direction: rtl;
 }
 .header-table td { padding: 1px 3px; vertical-align: middle; }
 .fed-name  { font-size: 16px; font-weight: bold; text-align: center; }
 .lgue-name { font-size: 14px; font-weight: bold; text-align: center; }
-.sess-name { font-size: 13px;   font-weight: bold; text-align: center; }
+.sess-name { font-size: 13px; font-weight: bold; text-align: center; }
 .member-photo { width: 90px; height: 110px; object-fit: cover; display: block; border: 1px solid #ccc; }
 .league-logo  { width: 85px; height: 85px; object-fit: contain; display: block; margin: auto; }
 
@@ -93,7 +96,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 .t {
     border-collapse: collapse;
     direction: rtl;
-    font-size: 10.5px;
+    font-size: 14px;
     width: 100%;
 }
 .t td, .t th {
@@ -105,7 +108,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 .sec-hdr {
     background: #c0c0c0;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 14px;
     text-align: center;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -132,8 +135,8 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 /* ── Two-column layout ── */
 .two-col {
     display: flex;
-    gap: 3mm;
-    margin-bottom: 1.5mm;
+    gap: 2mm;
+    margin-bottom: 3mm;
 }
 .two-col > * { flex: 1; min-width: 0; }
 
@@ -141,13 +144,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 .info-table { margin-bottom: 3mm; }
 .info-table td { height: 26px; }
 
-/* ── Poomse (full width) ── */
-.poomse-wrap { margin-bottom: 1.5mm; }
-
-/* ── Bottom two-col: Hoshinsool + Behavior ── */
-.bottom-wrap { margin-bottom: 1.5mm; }
-
-/* ── Single-row sections: fitness + flexibility/written ── */
+/* ── Single-row sections ── */
 .singles-wrap {
     display: flex;
     gap: 2mm;
@@ -155,24 +152,15 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 }
 .singles-wrap > * { flex: 1; }
 
-/* ── Divider ── */
-.divider {
-    height: 3px;
-    background: #555;
-    margin: 1mm 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-}
-
 .final-row td {
     border: 2px solid #000 !important;
     font-weight: bold;
-    font-size: 12px;
+    font-size: 14px;
     height: 32px;
 }
 .sign-row td {
     font-weight: bold;
-    font-size: 11px;
+    font-size: 13px;
     text-align: center;
     height: 45px;
     vertical-align: bottom;
@@ -182,7 +170,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 @media print {
     body { background: #fff; }
     .no-print { display: none !important; }
-    .exam-page { margin: 0; padding: 4mm 5mm; }
+    .exam-page { margin: 0; padding: 8mm 10mm; }
     @page { size: A4 portrait; margin: 0; }
 }
 </style>
@@ -190,37 +178,33 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
 <body>
 
 <div class="no-print">
-    <button class="btn btn-primary" onclick="window.print()">🖨 طباعة / تنزيل PDF</button>
-    <a href="/sport-club/admin/exam.php" class="btn btn-secondary">← رجوع</a>
+    <button class="btn btn-primary" onclick="window.print()">&#128438; طباعة / تنزيل PDF</button>
+    <a href="/sport-club/admin/exam.php" class="btn btn-secondary">&#8594; رجوع</a>
 </div>
 
-<?php 
-    $adminRow = $conn->query("SELECT club_name FROM admin LIMIT 1")->fetch_assoc();
-    $clubName = htmlspecialchars($adminRow['club_name'] ?? '');
-    foreach ($members as $m):
-        $imgPath = !empty($m['image_path'])
-            ? '/sport-club/assets/uploads/' . htmlspecialchars($m['image_path'])
-            : '/sport-club/assets/images/defult_image.png';
+<?php foreach ($members as $m):
+    $imgPath = !empty($m['image_path'])
+        ? '/sport-club/assets/uploads/' . htmlspecialchars($m['image_path'])
+        : '/sport-club/assets/images/defult_image.png';
 
-        $name      = htmlspecialchars($m['prenom'] . ' ' . $m['nom']);
-        $nxtBelt   = $m['next_belt'] ?? '';
-        $curentBelt = $m['current_belt'] ?? '';
-        $id        = htmlspecialchars($m['identifier']);
-        $beltClass = getBeltClass($nxtBelt, $belts, $greenIdx);
-        $isGreen   = isGreenOrAbove($nxtBelt, $belts, $greenIdx);
+    $name        = htmlspecialchars(trim(($m['prenom'] ?? '') . ' ' . ($m['nom'] ?? '')));
+    $nxtBelt     = $m['next_belt']    ?? '';
+    $currentBelt = $m['current_belt'] ?? '';
+    $beltClass   = getBeltClass($nxtBelt, $belts, $greenIdx);
+    $isGreen     = isGreenOrAbove($nxtBelt, $belts, $greenIdx);
 ?>
 <div class="exam-page">
 
     <!-- ══ HEADER ══ -->
     <table class="header-table">
         <tr>
-            <td style="width:75px" rowspan="4">
+            <td style="width:90px" rowspan="4">
                 <img src="/sport-club/assets/images/lrd_logo.jpg" alt="الشعار" class="league-logo">
             </td>
-            <td style="padding-bottom:1px">
+            <td>
                 <div class="fed-name">الجامعة الملكية المغربية للتايكواندو</div>
             </td>
-            <td style="width:75px" rowspan="4">
+            <td style="width:90px" rowspan="4">
                 <img src="<?= $imgPath ?>" alt="صورة المرشح" class="member-photo">
             </td>
         </tr>
@@ -237,7 +221,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
         </tr>
         <tr>
             <td class="info-lbl">: الحزام الحالي</td>
-            <td class="info-val" colspan="3"><?= $curentBelt ?></td>
+            <td class="info-val" colspan="3"><?= htmlspecialchars($currentBelt) ?></td>
         </tr>
         <tr>
             <td class="info-lbl <?= $beltClass ?>">: الحزام موضوع الامتحان</td>
@@ -245,35 +229,24 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
         </tr>
         <tr>
             <td class="info-lbl">: اسم النادي</td>
-            <td class="info-val" colspan="3"><?= htmlspecialchars($clubName) ?></td>
+            <td class="info-val" colspan="3"><?= $clubName ?></td>
         </tr>
     </table>
 
-    <!-- ══ ROW 1: الأرجل  |  اليدين ══ -->
+    <!-- ══ ROW 1 ══ -->
     <div class="two-col">
-        <!-- الحركات الأساسية للأرجل -->
         <table class="t">
             <tr><td class="sec-hdr" colspan="3">الحركات الأساسية للأرجل</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">الحركات الأمامية</td>
-                <td class="sc" style="width:25%">1</td>
-                <td style="width:35%"></td>
-            </tr>
+            <tr><td class="lbl" style="width:55%">الحركات الأمامية</td><td class="sc" style="width:20%">1</td><td style="width:25%"></td></tr>
             <tr><td class="lbl">الحركات الجانبية</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">الحركات الخلفية</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">قوة الحركات</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">التركيز</td><td class="sc">1</td><td></td></tr>
             <tr class="tot"><td>المجموع</td><td colspan="2">/05</td></tr>
         </table>
-
-        <!-- الحركات الأساسية لليدين -->
         <table class="t">
             <tr><td class="sec-hdr" colspan="3">الحركات الأساسية لليدين</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">الوضعيات</td>
-                <td class="sc" style="width:25%">1</td>
-                <td style="width:35%"></td>
-            </tr>
+            <tr><td class="lbl" style="width:55%">الوضعيات</td><td class="sc" style="width:20%">1</td><td style="width:25%"></td></tr>
             <tr><td class="lbl">الهجوم (تشيليكي)</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">الدفاع (ماكي)</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">القوة</td><td class="sc">1</td><td></td></tr>
@@ -282,47 +255,44 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
         </table>
     </div>
 
-    <!-- ══ ROW 2: الأسئلة الشفوية  |  تقنيات المباراة ══ -->
+    <!-- ══ ROW 2 ══ -->
     <div class="two-col">
-        <!-- تقنيات المباراة (الكيوروكي) -->
-        <table class="t">
-            <tr><td class="sec-hdr" colspan="3">تقنيات المباراة (الكيوروكي)</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">الرجل اليمنى (اورون)</td>
-                <td class="sc" style="width:25%">1</td>
-                <td style="width:35%"></td>
-            </tr>
-            <tr><td class="lbl">الرجل اليسرى (ون)</td><td class="sc">1</td><td></td></tr>
-            <tr><td class="lbl">الخطوات (سطيب)</td><td class="sc">1</td><td></td></tr>
-            <tr><td class="lbl">المضرب (راكيط)</td><td class="sc">1</td><td></td></tr>
-            <tr class="tot"><td>المجموع</td><td colspan="2">/04</td></tr>
-        </table>
-        <!-- الأسئلة الشفوية -->
         <table class="t">
             <tr><td class="sec-hdr" colspan="3">الأسئلة الشفوية</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">سؤال 1</td>
-                <td class="sc" style="width:25%">1</td>
-                <td style="width:35%"></td>
-            </tr>
+            <tr><td class="lbl" style="width:55%">سؤال 1</td><td class="sc" style="width:20%">1</td><td style="width:25%"></td></tr>
             <tr><td class="lbl">سؤال 2</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">سؤال 3</td><td class="sc">1</td><td></td></tr>
             <tr><td class="lbl">سؤال 4</td><td class="sc">1</td><td></td></tr>
             <tr class="tot"><td>المجموع</td><td colspan="2">/04</td></tr>
         </table>
+        <table class="t">
+            <tr><td class="sec-hdr" colspan="3">تقنيات المباراة (الكيوروكي)</td></tr>
+            <tr><td class="lbl" style="width:55%">الرجل اليمنى (اورون)</td><td class="sc" style="width:20%">1</td><td style="width:25%"></td></tr>
+            <tr><td class="lbl">الرجل اليسرى (ون)</td><td class="sc">1</td><td></td></tr>
+            <tr><td class="lbl">الخطوات (سطيب)</td><td class="sc">1</td><td></td></tr>
+            <tr><td class="lbl">المضرب (راكيط)</td><td class="sc">1</td><td></td></tr>
+            <tr class="tot"><td>المجموع</td><td colspan="2">/04</td></tr>
+        </table>
     </div>
-    
 
-    <!-- ══ ROW 3: الدفاع عن النفس  |  البومسي ══ -->
-    <div class="two-col bottom-wrap">
-        <!-- البومسي -->
+    <!-- ══ ROW 3 ══ -->
+    <div class="two-col">
+        <table class="t">
+            <tr><td class="sec-hdr" colspan="3">الدفاع عن النفس (الهوشينسول)</td></tr>
+            <tr><td class="lbl" style="width:55%">الوضعية</td><td class="sc" style="width:20%">3</td><td style="width:25%"></td></tr>
+            <tr><td class="lbl">الدفاع والهجوم</td><td class="sc">3</td><td></td></tr>
+            <tr><td class="lbl">السقوط والصيحة</td><td class="sc">3</td><td></td></tr>
+            <tr class="tot"><td>المجموع</td><td colspan="2">/09</td></tr>
+            <tr><td colspan="3" style="border:none; height:3px"></td></tr>
+            <tr><td class="sec-hdr" colspan="3">السلوك والمواظبة</td></tr>
+            <tr><td class="lbl">مع الأستاذ</td><td class="sc">4</td><td></td></tr>
+            <tr><td class="lbl">مع التلاميذ</td><td class="sc">4</td><td></td></tr>
+            <tr><td class="lbl">الحضور</td><td class="sc">4</td><td></td></tr>
+            <tr class="tot"><td>المجموع</td><td colspan="2">/12</td></tr>
+        </table>
         <table class="t">
             <tr><td class="sec-hdr" colspan="3">البومسي</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">الوضعيات</td>
-                <td class="sc" style="width:25%">5</td>
-                <td style="width:35%"></td>
-            </tr>
+            <tr><td class="lbl" style="width:55%">الوضعيات</td><td class="sc" style="width:20%">5</td><td style="width:25%"></td></tr>
             <tr><td class="lbl">حركات اليدين</td><td class="sc">5</td><td></td></tr>
             <tr><td class="lbl">حركات الأرجل</td><td class="sc">5</td><td></td></tr>
             <tr><td class="lbl">النظرة</td><td class="sc">5</td><td></td></tr>
@@ -332,66 +302,38 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
             <tr><td class="lbl">الصيحة (كيهاب)</td><td class="sc">5</td><td></td></tr>
             <tr class="tot"><td>المجموع</td><td colspan="2">/40</td></tr>
         </table>
-        <!-- الدفاع عن النفس (الهوشينسول) -->
-        <table class="t">
-            <tr><td class="sec-hdr" colspan="3">الدفاع عن النفس (الهوشينسول)</td></tr>
-            <tr>
-                <td class="lbl" style="width:40%">الوضعية</td>
-                <td class="sc" style="width:25%">3</td>
-                <td style="width:35%"></td>
-            </tr>
-            <tr><td class="lbl">الدفاع والهجوم</td><td class="sc">3</td><td></td></tr>
-            <tr><td class="lbl">السقوط والصحة</td><td class="sc">3</td><td></td></tr>
-            <tr class="tot"><td>المجموع</td><td colspan="2">/09</td></tr>
-            <!-- spacer to match height -->
-            <tr><td colspan="3" style="border:none; height:4px"></td></tr>
-            <!-- ══ السلوك والمواظبة ══ -->
-            <tr><td class="sec-hdr" colspan="3">السلوك والمواظبة</td></tr>
-            <tr><td class="lbl">مع الأستاذ</td><td class="sc">4</td><td></td></tr>
-            <tr><td class="lbl">مع التلاميذ</td><td class="sc">4</td><td></td></tr>
-            <tr><td class="lbl">الحضور</td><td class="sc">4</td><td></td></tr>
-            <tr class="tot"><td>المجموع</td><td colspan="2">/12</td></tr>
-        </table>
     </div>
 
-    <!-- ══ اللياقة البدنية | الليونة/الكتابي ══ -->
+    <!-- ══ اللياقة | الليونة أو الكتابي ══ -->
     <div class="singles-wrap">
         <table class="t">
             <tr>
-                <td class="sec-hdr" style="width:50%">اللياقة البدنية</td>
-                <td class="sc" style="width:30%">/10</td>
-                <td style="width:20%"></td>
+                <td class="sec-hdr" style="width:55%">اللياقة البدنية</td>
+                <td class="sc" style="width:20%">/10</td>
+                <td style="width:25%"></td>
             </tr>
         </table>
         <table class="t">
-            <?php if ($isGreen): ?>
             <tr>
-                <td class="sec-hdr" style="width:50%">الكتابي</td>
-                <td class="sc" style="width:30%">/10</td>
-                <td style="width:20%"></td>
+                <td class="sec-hdr" style="width:55%"><?= $isGreen ? 'الكتابي' : 'الليونة' ?></td>
+                <td class="sc" style="width:20%">/10</td>
+                <td style="width:25%"></td>
             </tr>
-            <?php else: ?>
-            <tr>
-                <td class="sec-hdr" style="width:50%">الليونة</td>
-                <td class="sc" style="width:30%">/10</td>
-                <td style="width:20%"></td>
-            </tr>
-            <?php endif; ?>
         </table>
     </div>
 
     <!-- ══ المعدل العام ══ -->
-    <table class="t" style="margin-bottom:1.5mm">
+    <table class="t" style="margin-bottom:3mm">
         <tr class="final-row">
-            <td class="info-lbl" style="width:30%">المعدل العام 100/</td>
+            <td class="info-lbl" style="width:30%">المعدل العام /100</td>
             <td colspan="3"></td>
         </tr>
     </table>
 
-    <!-- ══ الإمضاء ══ -->
+    <!-- ══ إمضاء لجنة الامتحانات ══ -->
     <table class="t">
         <tr class="sign-row">
-            <td colspan="4" style="text-decoration:underline; font-weight:bold; font-size:12px">إمضاء لجنة الامتحانات</td>
+            <td colspan="4">إمضاء لجنة الامتحانات</td>
         </tr>
     </table>
 
