@@ -93,9 +93,13 @@ class Adherent
         $sql = "UPDATE adherents SET
             nom=?, prenom=?, date_naissance=?, date_adhesion=?, poids=?,
             guardian_name=?, guardian_phone=?, second_guardian_phone=?, address=?,
-            health_status=?, blood_type=?, current_belt=?, next_belt=?, licence=?, note=?";
+            health_status=?, blood_type=?, current_belt=?, next_belt=?, licence=?, note=?, monthly_price=?";
 
-        $types  = "ssssdssssssssss";
+        $monthlyPrice = (isset($data['monthly_price']) && $data['monthly_price'] !== '')
+            ? (float)$data['monthly_price']
+            : null;
+
+        $types  = "ssssdssssssssss" . "s";
         $params = [
             $data['nom'],
             $data['prenom'],
@@ -112,6 +116,7 @@ class Adherent
             $data['next_belt']              ?? '',
             $data['licence']                ?? '',
             $data['note']                   ?? '',
+            $monthlyPrice,
         ];
 
         if ($imagePath) {

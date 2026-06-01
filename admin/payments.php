@@ -34,14 +34,8 @@ function formatPaymentDate($date, $months) {
     <div class="section-header">
         <h2>سجل المدفوعات</h2>
         <div class="export-btns">
-            <a href="/sport-club/admin/export_month.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
-                <i class="fas fa-file-pdf"></i> المتأخرون عن الواجب الشهري
-            </a>
-            <a href="/sport-club/admin/export_adhesion.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
-                <i class="fas fa-file-pdf"></i> المتأخرون عن الانخراط السنوي
-            </a>
-            <a href="/sport-club/admin/export_assurance.php?month=<?= urlencode($filterMonth) ?>" class="btn-shape bg-c-60 color-fff">
-                <i class="fas fa-file-pdf"></i> المتأخرون عن التأمين
+            <a href="/sport-club/admin/black_list.php" class="btn-shape color-fff" style="background:#c0392b;">
+                <i class="fas fa-ban"></i> القائمة السوداء
             </a>
         </div>
     </div>

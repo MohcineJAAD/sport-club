@@ -31,6 +31,7 @@ $data = [
     'next_belt'              => trim($_POST['next_belt']             ?? ''),
     'licence'                => trim($_POST['licence']               ?? ''),
     'note'                   => trim($_POST['note']                  ?? ''),
+    'monthly_price'          => trim($_POST['monthly_price']         ?? ''),
     'BC_path'                => '',
 ];
 

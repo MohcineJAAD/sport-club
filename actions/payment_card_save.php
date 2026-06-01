@@ -10,7 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $identifier = trim($_POST['identifier'] ?? '');
 $year       = (int)($_POST['year']       ?? date('Y'));
-$months     = array_map('intval', $_POST['months'] ?? []);
 $assurance  = isset($_POST['assurance']);
 $adhesion   = isset($_POST['adhesion']);
 
@@ -21,8 +20,18 @@ if (empty($identifier)) {
     exit();
 }
 
+// Build monthAmounts: only include months with a positive cash amount
+$rawAmounts   = $_POST['amounts'] ?? [];
+$monthAmounts = [];
+foreach ($rawAmounts as $m => $amt) {
+    $amt = (float)$amt;
+    if ($amt > 0) {
+        $monthAmounts[(int)$m] = $amt;
+    }
+}
+
 $payment = new Payment($conn);
-$payment->saveCard($identifier, $year, $months, $assurance, $adhesion);
+$payment->saveCard($identifier, $year, $monthAmounts, $assurance, $adhesion);
 
 $_SESSION['message'] = 'تم حفظ المدفوعات بنجاح';
 $_SESSION['status']  = 'success';
