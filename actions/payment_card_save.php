@@ -8,12 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-$identifier      = trim($_POST['identifier']      ?? '');
-$year            = (int)($_POST['year']            ?? date('Y'));
-$assuranceAmount = (float)($_POST['assurance_amount'] ?? 0);
-$adhesionAmount  = (float)($_POST['adhesion_amount']  ?? 0);
-$examJanAmount   = (float)($_POST['exam_jan_amount']  ?? 0);
-$examJunAmount   = (float)($_POST['exam_jun_amount']  ?? 0);
+$identifier = trim($_POST['identifier'] ?? '');
+$year       = (int)($_POST['year']       ?? date('Y'));
 
 if (empty($identifier)) {
     $_SESSION['message'] = 'معرف المشترك غير صالح';
@@ -22,26 +18,39 @@ if (empty($identifier)) {
     exit();
 }
 
-// Amounts are zeroed by JS for unchanged unpaid cells, so only changed/paid ones have value > 0
 $monthAmounts = [];
 foreach ($_POST['amounts'] ?? [] as $m => $amt) {
-    $monthAmounts[(int)$m] = (float)$amt; // 0 = erase, >0 = record
+    $monthAmounts[(int)$m] = (float)$amt;
+}
+
+$monthDueAmounts = [];
+foreach ($_POST['due_amounts'] ?? [] as $m => $amt) {
+    $monthDueAmounts[(int)$m] = (float)$amt;
 }
 
 $assuranceAmount = (float)($_POST['assurance_amount'] ?? 0);
+$assuranceDue    = (float)($_POST['assurance_due']    ?? 0);
 $adhesionAmount  = (float)($_POST['adhesion_amount']  ?? 0);
+$adhesionDue     = (float)($_POST['adhesion_due']     ?? 0);
 $examJanAmount   = (float)($_POST['exam_jan_amount']  ?? 0);
+$examJanDue      = (float)($_POST['exam_jan_due']     ?? 0);
 $examJunAmount   = (float)($_POST['exam_jun_amount']  ?? 0);
+$examJunDue      = (float)($_POST['exam_jun_due']     ?? 0);
 
 $payment = new Payment($conn);
 $payment->saveCard(
     $identifier,
     $year,
     $monthAmounts,
+    $monthDueAmounts,
     $assuranceAmount,
+    $assuranceDue,
     $adhesionAmount,
+    $adhesionDue,
     $examJanAmount,
-    $examJunAmount
+    $examJanDue,
+    $examJunAmount,
+    $examJunDue
 );
 
 $_SESSION['message'] = 'تم حفظ المدفوعات بنجاح';

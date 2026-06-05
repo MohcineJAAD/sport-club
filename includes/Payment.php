@@ -107,7 +107,7 @@ class Payment {
 
         // Payments within the sport year (including exam types)
         $stmt = $this->conn->prepare("
-            SELECT type, payment_date, amount FROM payments
+            SELECT type, payment_date, amount, due_amount FROM payments
             WHERE identifier = ?
               AND ((YEAR(payment_date) = ? AND MONTH(payment_date) >= 9)
                 OR (YEAR(payment_date) = ? AND MONTH(payment_date) <= 8))
@@ -119,12 +119,12 @@ class Payment {
 
         // Attendance per month within the sport year
         $stmt = $this->conn->prepare("
-            SELECT MONTH(date) AS mon, COUNT(*) AS cnt
+            SELECT MONTH(`date`) AS mon, COUNT(*) AS cnt
             FROM attendance
             WHERE identifier = ?
-              AND ((YEAR(date) = ? AND MONTH(date) >= 9)
-                OR (YEAR(date) = ? AND MONTH(date) <= 8))
-            GROUP BY MONTH(date)
+              AND ((YEAR(`date`) = ? AND MONTH(`date`) >= 9)
+                OR (YEAR(`date`) = ? AND MONTH(`date`) <= 8))
+            GROUP BY MONTH(`date`)
         ");
         $stmt->bind_param("sii", $identifier, $sportYear, $nextYear);
         $stmt->execute();
@@ -158,23 +158,36 @@ class Payment {
             : (float)($pricing['price'] ?? 0);
 
         $monthsPaid       = [];
+        $monthsDue        = [];   // saved due_amount per month
         $assuranceAmount  = 0.0;
+        $assuranceDue     = 0.0;
         $adhesionAmount   = 0.0;
+        $adhesionDue      = 0.0;
         $examJanAmount    = 0.0;
+        $examJanDue       = 0.0;
         $examJunAmount    = 0.0;
+        $examJunDue       = 0.0;
 
         foreach ($rows as $row) {
-            $m = (int)date('n', strtotime($row['payment_date']));
+            $m   = (int)date('n', strtotime($row['payment_date']));
             $amt = (float)$row['amount'];
+            $due = $row['due_amount'] !== null ? (float)$row['due_amount'] : 0.0;
             switch ($row['type']) {
-                case 'assurance': $assuranceAmount = $amt; break;
-                case 'adhesion':  $adhesionAmount  = $amt; break;
+                case 'assurance':
+                    $assuranceAmount = $amt;
+                    $assuranceDue    = $due;
+                    break;
+                case 'adhesion':
+                    $adhesionAmount  = $amt;
+                    $adhesionDue     = $due;
+                    break;
                 case 'exam':
-                    if ($m === 1) $examJanAmount = $amt;
-                    if ($m === 6) $examJunAmount = $amt;
+                    if ($m === 1) { $examJanAmount = $amt; $examJanDue = $due; }
+                    if ($m === 6) { $examJunAmount = $amt; $examJunDue = $due; }
                     break;
                 default: // 'mois'
                     $monthsPaid[$m] = $amt;
+                    if ($due > 0) $monthsDue[$m] = $due;
             }
         }
 
@@ -185,10 +198,15 @@ class Payment {
 
         return [
             'monthsPaid'       => $monthsPaid,
+            'monthsDue'        => $monthsDue,
             'assuranceAmount'  => $assuranceAmount,
+            'assuranceDue'     => $assuranceDue,
             'adhesionAmount'   => $adhesionAmount,
+            'adhesionDue'      => $adhesionDue,
             'examJanAmount'    => $examJanAmount,
+            'examJanDue'       => $examJanDue,
             'examJunAmount'    => $examJunAmount,
+            'examJunDue'       => $examJunDue,
             'monthlyDue'       => $monthlyDue,
             'assurancePrice'   => (float)($pricing['assurance_price'] ?? 0),
             'adhesionPrice'    => (float)($pricing['adhesion_price']  ?? 0),
@@ -206,10 +224,15 @@ class Payment {
         string $identifier,
         int    $sportYear,
         array  $monthAmounts,
+        array  $monthDueAmounts,
         float  $assuranceAmount,
+        float  $assuranceDue,
         float  $adhesionAmount,
+        float  $adhesionDue,
         float  $examJanAmount,
-        float  $examJunAmount
+        float  $examJanDue,
+        float  $examJunAmount,
+        float  $examJunDue
     ): void {
         $nextYear = $sportYear + 1;
 
@@ -224,34 +247,39 @@ class Payment {
         $stmt->close();
 
         $ins = $this->conn->prepare(
-            "INSERT INTO payments (identifier, amount, type, payment_date) VALUES (?, ?, ?, ?)"
+            "INSERT INTO payments (identifier, amount, due_amount, type, payment_date) VALUES (?, ?, ?, ?, ?)"
         );
 
         foreach ($monthAmounts as $month => $amount) {
             $month = (int)$month;
             if ($amount <= 0) continue;
+            $due        = $monthDueAmounts[$month] > 0 ? $monthDueAmounts[$month] : null;
             $actualYear = $month >= 9 ? $sportYear : $nextYear;
-            $date = sprintf('%04d-%02d-01', $actualYear, $month);
-            $type = 'mois';
-            $ins->bind_param("sdss", $identifier, $amount, $type, $date);
+            $date       = sprintf('%04d-%02d-01', $actualYear, $month);
+            $type       = 'mois';
+            $ins->bind_param("sddss", $identifier, $amount, $due, $type, $date);
             $ins->execute();
         }
 
         if ($assuranceAmount > 0) {
             $date = sprintf('%04d-09-01', $sportYear); $type = 'assurance';
-            $ins->bind_param("sdss", $identifier, $assuranceAmount, $type, $date); $ins->execute();
+            $due  = $assuranceDue > 0 ? $assuranceDue : null;
+            $ins->bind_param("sddss", $identifier, $assuranceAmount, $due, $type, $date); $ins->execute();
         }
         if ($adhesionAmount > 0) {
             $date = sprintf('%04d-09-01', $sportYear); $type = 'adhesion';
-            $ins->bind_param("sdss", $identifier, $adhesionAmount, $type, $date); $ins->execute();
+            $due  = $adhesionDue > 0 ? $adhesionDue : null;
+            $ins->bind_param("sddss", $identifier, $adhesionAmount, $due, $type, $date); $ins->execute();
         }
         if ($examJanAmount > 0) {
             $date = sprintf('%04d-01-01', $nextYear); $type = 'exam';
-            $ins->bind_param("sdss", $identifier, $examJanAmount, $type, $date); $ins->execute();
+            $due  = $examJanDue > 0 ? $examJanDue : null;
+            $ins->bind_param("sddss", $identifier, $examJanAmount, $due, $type, $date); $ins->execute();
         }
         if ($examJunAmount > 0) {
             $date = sprintf('%04d-06-01', $nextYear); $type = 'exam';
-            $ins->bind_param("sdss", $identifier, $examJunAmount, $type, $date); $ins->execute();
+            $due  = $examJunDue > 0 ? $examJunDue : null;
+            $ins->bind_param("sddss", $identifier, $examJunAmount, $due, $type, $date); $ins->execute();
         }
 
         $ins->close();

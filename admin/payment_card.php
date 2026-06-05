@@ -42,10 +42,13 @@ $hasImage = !empty($member['image_path']);
 $hasBc    = !empty($member['BC_path']);
 
 $monthlyDue      = $cardData['monthlyDue'];
-$monthsPaid      = $cardData['monthsPaid'];        // [month => amount]
+$monthsPaid      = $cardData['monthsPaid'];        // [month => cash paid]
+$monthsDue       = $cardData['monthsDue'];         // [month => saved due_amount]
 $attendanceCounts= $cardData['attendanceCounts'];  // [month => count]
 $totalSessions   = $cardData['totalSessions'];
-$inTrial         = $totalSessions < 5;
+// Use all-time count but also count sessions in this sport year for trial check
+$yearSessions    = array_sum($attendanceCounts);
+$inTrial         = $totalSessions < 5 && $yearSessions < 5;
 ?>
 <?php require 'layout/header.php'; ?>
 
@@ -95,6 +98,7 @@ $inTrial         = $totalSessions < 5;
         <?php endforeach; ?>
     </select>
 
+
     <form method="POST" action="/sport-club/actions/payment_card_save.php" id="cardForm">
         <input type="hidden" name="identifier" value="<?= htmlspecialchars($identifier) ?>">
         <input type="hidden" name="year" value="<?= $year ?>">
@@ -108,8 +112,9 @@ $inTrial         = $totalSessions < 5;
                         $paidAmt = $monthsPaid[$num] ?? 0;
                         $paid    = $paidAmt > 0;
                         $att     = $attendanceCounts[$num] ?? 0;
-                        $overdue = !$paid && !$inTrial && $att >= 5;
-                        $partial = $paid && $monthlyDue > 0 && $paidAmt < $monthlyDue - 0.01;
+                        $cellDue = $monthsDue[$num] ?? $monthlyDue; // saved due or plan price
+                        $overdue = !$paid && $att >= 5;
+                        $partial = $paid && $cellDue > 0 && $paidAmt < $cellDue - 0.01;
 
                         $actualYear = $num >= 9 ? $year : $year + 1;
                         $isFuture   = ($actualYear > $nowYear) || ($actualYear === $nowYear && $num > $nowMonth);
@@ -120,7 +125,7 @@ $inTrial         = $totalSessions < 5;
                         elseif ($overdue)         $cls .= ' cell-overdue';
                         if ($isFuture)            $cls .= ' cell-future';
                     ?>
-                        <div class="<?= $cls ?>" data-due="<?= $monthlyDue ?>">
+                        <div class="<?= $cls ?>" data-due="<?= $cellDue ?>">
 
                             <!-- VIEW -->
                             <div class="cv">
@@ -128,13 +133,13 @@ $inTrial         = $totalSessions < 5;
                                 <?php if ($paid && !$partial): ?>
                                     <span class="amt-green">✓ <?= number_format($paidAmt, 2) ?> DH</span>
                                 <?php elseif ($partial): ?>
-                                    <span class="amt-orange"><?= number_format($paidAmt, 2) ?> / <?= number_format($monthlyDue, 2) ?> DH</span>
-                                    <small class="rest-lbl">متبقي <?= number_format($monthlyDue - $paidAmt, 2) ?> DH</small>
+                                    <span class="amt-orange"><?= number_format($paidAmt, 2) ?> / <?= number_format($cellDue, 2) ?> DH</span>
+                                    <small class="rest-lbl">متبقي <?= number_format($cellDue - $paidAmt, 2) ?> DH</small>
                                 <?php elseif ($overdue): ?>
                                     <span class="amt-red">⚠ <?= $att ?> حصص</span>
-                                    <small class="color-aaa"><?= number_format($monthlyDue, 2) ?> DH</small>
+                                    <small class="color-aaa"><?= number_format($cellDue, 2) ?> DH</small>
                                 <?php elseif (!$isFuture): ?>
-                                    <span class="amt-gray"><?= number_format($monthlyDue, 2) ?> DH</span>
+                                    <span class="amt-gray"><?= number_format($cellDue, 2) ?> DH</span>
                                 <?php endif; ?>
                                 <?php if ($att > 0 && !$isFuture): ?>
                                     <small class="att-lbl"><?= $att ?> حضور</small>
@@ -146,21 +151,19 @@ $inTrial         = $totalSessions < 5;
                                 <h4 class="mb-4"><?= $name ?></h4>
                                 <div class="ce-row">
                                     <label>المستحق</label>
-                                    <input type="number" name="amounts[<?= $num ?>]"
+                                    <input type="number" name="due_amounts[<?= $num ?>]"
                                            class="inp-price" step="0.01" min="0"
-                                           value="<?= $paid ? $paidAmt : $monthlyDue ?>"
-                                           <?= !$paid ? 'data-unpaid="'.$monthlyDue.'"' : '' ?>>
+                                           value="<?= $cellDue ?>">
                                     <span class="dh">DH</span>
                                 </div>
                                 <div class="ce-row">
                                     <label>النقد</label>
-                                    <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                                    <input type="number" name="amounts[<?= $num ?>]"
+                                           class="inp-cash" step="0.01" min="0"
+                                           value="<?= $paid ? $paidAmt : '' ?>" placeholder="0.00">
                                     <span class="dh">DH</span>
                                 </div>
                                 <div class="ce-rest"></div>
-                                <?php if (!$paid): ?>
-                                    <small class="color-aaa">غيّر المبلغ لتسجيله • اتركه كما هو = غير مدفوع</small>
-                                <?php endif; ?>
                             </div>
 
                         </div>
@@ -171,42 +174,44 @@ $inTrial         = $totalSessions < 5;
             <!-- ─── Assurance + Adhesion ─── -->
             <div class="flex-row special-row">
                 <?php
-                $assAmt  = $cardData['assuranceAmount'];
-                $assPrice= $cardData['assurancePrice'];
-                $assPartial = $assAmt > 0 && $assAmt < $assPrice - 0.01;
-                $assCls  = 'flex-cell' . ($assAmt > 0 ? ($assPartial ? ' cell-partial' : ' paid') : '');
+                $assAmt     = $cardData['assuranceAmount'];
+                $assPrice   = $cardData['assurancePrice'];
+                $assCellDue = $cardData['assuranceDue'] > 0 ? $cardData['assuranceDue'] : $assPrice;
+                $assPartial = $assAmt > 0 && $assCellDue > 0 && $assAmt < $assCellDue - 0.01;
+                $assCls     = 'flex-cell' . ($assAmt > 0 ? ($assPartial ? ' cell-partial' : ' paid') : ' cell-overdue');
 
-                $adhAmt  = $cardData['adhesionAmount'];
-                $adhPrice= $cardData['adhesionPrice'];
-                $adhPartial = $adhAmt > 0 && $adhAmt < $adhPrice - 0.01;
-                $adhCls  = 'flex-cell' . ($adhAmt > 0 ? ($adhPartial ? ' cell-partial' : ' paid') : '');
+                $adhAmt     = $cardData['adhesionAmount'];
+                $adhPrice   = $cardData['adhesionPrice'];
+                $adhCellDue = $cardData['adhesionDue'] > 0 ? $cardData['adhesionDue'] : $adhPrice;
+                $adhPartial = $adhAmt > 0 && $adhCellDue > 0 && $adhAmt < $adhCellDue - 0.01;
+                $adhCls     = 'flex-cell' . ($adhAmt > 0 ? ($adhPartial ? ' cell-partial' : ' paid') : ' cell-overdue');
                 ?>
 
                 <!-- Assurance -->
-                <div class="<?= $assCls ?>" data-due="<?= $assPrice ?>">
+                <div class="<?= $assCls ?>" data-due="<?= $assCellDue ?>">
                     <div class="cv">
                         <h4 class="mb-4">التأمين</h4>
                         <?php if ($assAmt > 0 && !$assPartial): ?>
                             <span class="amt-green">✓ <?= number_format($assAmt, 2) ?> DH</span>
                         <?php elseif ($assPartial): ?>
-                            <span class="amt-orange"><?= number_format($assAmt, 2) ?> / <?= number_format($assPrice, 2) ?> DH</span>
+                            <span class="amt-orange"><?= number_format($assAmt, 2) ?> / <?= number_format($assCellDue, 2) ?> DH</span>
                         <?php else: ?>
-                            <span class="amt-gray"><?= number_format($assPrice, 2) ?> DH</span>
+                            <span class="amt-red">⚠ غير مدفوع</span>
+                            <small class="color-aaa"><?= number_format($assCellDue, 2) ?> DH</small>
                         <?php endif; ?>
                     </div>
                     <div class="ce hidden">
                         <h4 class="mb-4">التأمين</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="assurance_amount"
-                                   class="inp-price"
-                                   step="0.01" min="0" value="<?= $assAmt > 0 ? $assAmt : $assPrice ?>"
-                                   <?= $assAmt <= 0 ? 'data-unpaid="'.$assPrice.'"' : '' ?>>
+                            <input type="number" name="assurance_due" class="inp-price"
+                                   step="0.01" min="0" value="<?= $assCellDue ?>">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
                             <label>النقد</label>
-                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <input type="number" name="assurance_amount" class="inp-cash"
+                                   step="0.01" min="0" value="<?= $assAmt > 0 ? $assAmt : '' ?>" placeholder="0.00">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-rest"></div>
@@ -214,30 +219,31 @@ $inTrial         = $totalSessions < 5;
                 </div>
 
                 <!-- Adhesion -->
-                <div class="<?= $adhCls ?>" data-due="<?= $adhPrice ?>">
+                <div class="<?= $adhCls ?>" data-due="<?= $adhCellDue ?>">
                     <div class="cv">
                         <h4 class="mb-4">الانخراط السنوي</h4>
                         <?php if ($adhAmt > 0 && !$adhPartial): ?>
                             <span class="amt-green">✓ <?= number_format($adhAmt, 2) ?> DH</span>
                         <?php elseif ($adhPartial): ?>
-                            <span class="amt-orange"><?= number_format($adhAmt, 2) ?> / <?= number_format($adhPrice, 2) ?> DH</span>
+                            <span class="amt-orange"><?= number_format($adhAmt, 2) ?> / <?= number_format($adhCellDue, 2) ?> DH</span>
                         <?php else: ?>
-                            <span class="amt-gray"><?= number_format($adhPrice, 2) ?> DH</span>
+                            <span class="amt-red">⚠ غير مدفوع</span>
+                            <small class="color-aaa"><?= number_format($adhCellDue, 2) ?> DH</small>
                         <?php endif; ?>
                     </div>
                     <div class="ce hidden">
                         <h4 class="mb-4">الانخراط السنوي</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="adhesion_amount"
-                                   class="inp-price"
-                                   step="0.01" min="0" value="<?= $adhAmt > 0 ? $adhAmt : $adhPrice ?>"
-                                   <?= $adhAmt <= 0 ? 'data-unpaid="'.$adhPrice.'"' : '' ?>>
+                            <input type="number" name="adhesion_due" class="inp-price"
+                                   step="0.01" min="0" value="<?= $adhCellDue ?>">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
                             <label>النقد</label>
-                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <input type="number" name="adhesion_amount" class="inp-cash"
+                                   step="0.01" min="0"
+                                   value="<?= $adhAmt > 0 ? $adhAmt : '' ?>" placeholder="0.00">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-rest"></div>
@@ -247,40 +253,42 @@ $inTrial         = $totalSessions < 5;
 
             <!-- ─── Belt Exams ─── -->
             <?php
-            $examPrice   = $cardData['examPrice'];
-            $janAmt      = $cardData['examJanAmount'];
-            $junAmt      = $cardData['examJunAmount'];
-            $janPartial  = $janAmt > 0 && $examPrice > 0 && $janAmt < $examPrice - 0.01;
-            $junPartial  = $junAmt > 0 && $examPrice > 0 && $junAmt < $examPrice - 0.01;
-            $janCls      = 'flex-cell' . ($janAmt > 0 ? ($janPartial ? ' cell-partial' : ' paid') : '');
-            $junCls      = 'flex-cell' . ($junAmt > 0 ? ($junPartial ? ' cell-partial' : ' paid') : '');
+            $examPrice    = $cardData['examPrice'];
+            $janAmt       = $cardData['examJanAmount'];
+            $junAmt       = $cardData['examJunAmount'];
+            $janCellDue   = $cardData['examJanDue'] > 0 ? $cardData['examJanDue'] : $examPrice;
+            $junCellDue   = $cardData['examJunDue'] > 0 ? $cardData['examJunDue'] : $examPrice;
+            $janPartial   = $janAmt > 0 && $janCellDue > 0 && $janAmt < $janCellDue - 0.01;
+            $junPartial   = $junAmt > 0 && $junCellDue > 0 && $junAmt < $junCellDue - 0.01;
+            $janCls       = 'flex-cell' . ($janAmt > 0 ? ($janPartial ? ' cell-partial' : ' paid') : '');
+            $junCls       = 'flex-cell' . ($junAmt > 0 ? ($junPartial ? ' cell-partial' : ' paid') : '');
             ?>
             <div class="flex-row exam-row">
                 <!-- Jan exam -->
-                <div class="<?= $janCls ?>" data-due="<?= $examPrice ?>">
+                <div class="<?= $janCls ?>" data-due="<?= $janCellDue ?>">
                     <div class="cv">
                         <h4 class="mb-4">🥋 فحص يناير</h4>
                         <?php if ($janAmt > 0 && !$janPartial): ?>
                             <span class="amt-green">✓ <?= number_format($janAmt, 2) ?> DH</span>
                         <?php elseif ($janPartial): ?>
-                            <span class="amt-orange"><?= number_format($janAmt, 2) ?> / <?= number_format($examPrice, 2) ?> DH</span>
+                            <span class="amt-orange"><?= number_format($janAmt, 2) ?> / <?= number_format($janCellDue, 2) ?> DH</span>
                         <?php else: ?>
-                            <span class="amt-gray"><?= number_format($examPrice, 2) ?> DH</span>
+                            <span class="amt-gray"><?= number_format($janCellDue, 2) ?> DH</span>
                         <?php endif; ?>
                     </div>
                     <div class="ce hidden">
                         <h4 class="mb-4">🥋 فحص يناير</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="exam_jan_amount"
-                                   class="inp-price"
-                                   step="0.01" min="0" value="<?= $janAmt > 0 ? $janAmt : $examPrice ?>"
-                                   <?= $janAmt <= 0 ? 'data-unpaid="'.$examPrice.'"' : '' ?>>
+                            <input type="number" name="exam_jan_due" class="inp-price"
+                                   step="0.01" min="0" value="<?= $janCellDue ?>">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
                             <label>النقد</label>
-                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <input type="number" name="exam_jan_amount" class="inp-cash"
+                                   step="0.01" min="0"
+                                   value="<?= $janAmt > 0 ? $janAmt : '' ?>" placeholder="0.00">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-rest"></div>
@@ -289,30 +297,30 @@ $inTrial         = $totalSessions < 5;
                 </div>
 
                 <!-- Jun exam -->
-                <div class="<?= $junCls ?>" data-due="<?= $examPrice ?>">
+                <div class="<?= $junCls ?>" data-due="<?= $junCellDue ?>">
                     <div class="cv">
                         <h4 class="mb-4">🥋 فحص يونيو</h4>
                         <?php if ($junAmt > 0 && !$junPartial): ?>
                             <span class="amt-green">✓ <?= number_format($junAmt, 2) ?> DH</span>
                         <?php elseif ($junPartial): ?>
-                            <span class="amt-orange"><?= number_format($junAmt, 2) ?> / <?= number_format($examPrice, 2) ?> DH</span>
+                            <span class="amt-orange"><?= number_format($junAmt, 2) ?> / <?= number_format($junCellDue, 2) ?> DH</span>
                         <?php else: ?>
-                            <span class="amt-gray"><?= number_format($examPrice, 2) ?> DH</span>
+                            <span class="amt-gray"><?= number_format($junCellDue, 2) ?> DH</span>
                         <?php endif; ?>
                     </div>
                     <div class="ce hidden">
                         <h4 class="mb-4">🥋 فحص يونيو</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="exam_jun_amount"
-                                   class="inp-price"
-                                   step="0.01" min="0" value="<?= $junAmt > 0 ? $junAmt : $examPrice ?>"
-                                   <?= $junAmt <= 0 ? 'data-unpaid="'.$examPrice.'"' : '' ?>>
+                            <input type="number" name="exam_jun_due" class="inp-price"
+                                   step="0.01" min="0" value="<?= $junCellDue ?>">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
                             <label>النقد</label>
-                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <input type="number" name="exam_jun_amount" class="inp-cash"
+                                   step="0.01" min="0"
+                                   value="<?= $junAmt > 0 ? $junAmt : '' ?>" placeholder="0.00">
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-rest"></div>
@@ -390,15 +398,6 @@ modBtn.addEventListener('click', () => {
 });
 
 cancelBtn.addEventListener('click', () => window.location.reload());
-
-// Before submitting: zero out any unpaid cell the manager didn't change
-document.getElementById('cardForm').addEventListener('submit', () => {
-    document.querySelectorAll('.inp-price[data-unpaid]').forEach(inp => {
-        if (parseFloat(inp.value) === parseFloat(inp.dataset.unpaid)) {
-            inp.value = 0;
-        }
-    });
-});
 
 // Live change/rest calculation
 document.querySelectorAll('.flex-cell').forEach(cell => {
