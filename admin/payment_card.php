@@ -148,7 +148,8 @@ $inTrial         = $totalSessions < 5;
                                     <label>المستحق</label>
                                     <input type="number" name="amounts[<?= $num ?>]"
                                            class="inp-price" step="0.01" min="0"
-                                           value="<?= $paid ? $paidAmt : $monthlyDue ?>">
+                                           value="<?= $paid ? $paidAmt : $monthlyDue ?>"
+                                           <?= !$paid ? 'data-unpaid="'.$monthlyDue.'"' : '' ?>>
                                     <span class="dh">DH</span>
                                 </div>
                                 <div class="ce-row">
@@ -157,6 +158,9 @@ $inTrial         = $totalSessions < 5;
                                     <span class="dh">DH</span>
                                 </div>
                                 <div class="ce-rest"></div>
+                                <?php if (!$paid): ?>
+                                    <small class="color-aaa">غيّر المبلغ لتسجيله • اتركه كما هو = غير مدفوع</small>
+                                <?php endif; ?>
                             </div>
 
                         </div>
@@ -194,8 +198,10 @@ $inTrial         = $totalSessions < 5;
                         <h4 class="mb-4">التأمين</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="assurance_amount" class="inp-price"
-                                   step="0.01" min="0" value="<?= $assAmt > 0 ? $assAmt : $assPrice ?>">
+                            <input type="number" name="assurance_amount"
+                                   class="inp-price"
+                                   step="0.01" min="0" value="<?= $assAmt > 0 ? $assAmt : $assPrice ?>"
+                                   <?= $assAmt <= 0 ? 'data-unpaid="'.$assPrice.'"' : '' ?>>
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
@@ -223,8 +229,10 @@ $inTrial         = $totalSessions < 5;
                         <h4 class="mb-4">الانخراط السنوي</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="adhesion_amount" class="inp-price"
-                                   step="0.01" min="0" value="<?= $adhAmt > 0 ? $adhAmt : $adhPrice ?>">
+                            <input type="number" name="adhesion_amount"
+                                   class="inp-price"
+                                   step="0.01" min="0" value="<?= $adhAmt > 0 ? $adhAmt : $adhPrice ?>"
+                                   <?= $adhAmt <= 0 ? 'data-unpaid="'.$adhPrice.'"' : '' ?>>
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
@@ -264,8 +272,10 @@ $inTrial         = $totalSessions < 5;
                         <h4 class="mb-4">🥋 فحص يناير</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="exam_jan_amount" class="inp-price"
-                                   step="0.01" min="0" value="<?= $janAmt > 0 ? $janAmt : $examPrice ?>">
+                            <input type="number" name="exam_jan_amount"
+                                   class="inp-price"
+                                   step="0.01" min="0" value="<?= $janAmt > 0 ? $janAmt : $examPrice ?>"
+                                   <?= $janAmt <= 0 ? 'data-unpaid="'.$examPrice.'"' : '' ?>>
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
@@ -294,8 +304,10 @@ $inTrial         = $totalSessions < 5;
                         <h4 class="mb-4">🥋 فحص يونيو</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
-                            <input type="number" name="exam_jun_amount" class="inp-price"
-                                   step="0.01" min="0" value="<?= $junAmt > 0 ? $junAmt : $examPrice ?>">
+                            <input type="number" name="exam_jun_amount"
+                                   class="inp-price"
+                                   step="0.01" min="0" value="<?= $junAmt > 0 ? $junAmt : $examPrice ?>"
+                                   <?= $junAmt <= 0 ? 'data-unpaid="'.$examPrice.'"' : '' ?>>
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-row">
@@ -379,7 +391,16 @@ modBtn.addEventListener('click', () => {
 
 cancelBtn.addEventListener('click', () => window.location.reload());
 
-// Live change/rest calculation for every cell
+// Before submitting: zero out any unpaid cell the manager didn't change
+document.getElementById('cardForm').addEventListener('submit', () => {
+    document.querySelectorAll('.inp-price[data-unpaid]').forEach(inp => {
+        if (parseFloat(inp.value) === parseFloat(inp.dataset.unpaid)) {
+            inp.value = 0;
+        }
+    });
+});
+
+// Live change/rest calculation
 document.querySelectorAll('.flex-cell').forEach(cell => {
     const priceIn = cell.querySelector('.inp-price');
     const cashIn  = cell.querySelector('.inp-cash');

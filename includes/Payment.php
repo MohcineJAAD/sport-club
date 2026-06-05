@@ -200,12 +200,7 @@ class Payment {
 
     /**
      * Save payment card for a sport year.
-     *
-     * $monthAmounts    [month => amount]  – only months where amount > 0
-     * $assuranceAmount float              – 0 means not paid
-     * $adhesionAmount  float              – 0 means not paid
-     * $examJanAmount   float              – 0 means not taken / not paid
-     * $examJunAmount   float              – 0 means not taken / not paid
+     * Deletes all records for the sport year then re-inserts only those with amount > 0.
      */
     public function saveCard(
         string $identifier,
@@ -218,7 +213,7 @@ class Payment {
     ): void {
         $nextYear = $sportYear + 1;
 
-        // Delete all payments (all types) for this sport year
+        // Wipe the full sport year
         $stmt = $this->conn->prepare("
             DELETE FROM payments WHERE identifier = ?
               AND ((YEAR(payment_date) = ? AND MONTH(payment_date) >= 9)
@@ -228,53 +223,38 @@ class Payment {
         $stmt->execute();
         $stmt->close();
 
-        $stmt = $this->conn->prepare(
+        $ins = $this->conn->prepare(
             "INSERT INTO payments (identifier, amount, type, payment_date) VALUES (?, ?, ?, ?)"
         );
 
-        // Monthly payments
         foreach ($monthAmounts as $month => $amount) {
-            $month      = (int)$month;
+            $month = (int)$month;
+            if ($amount <= 0) continue;
             $actualYear = $month >= 9 ? $sportYear : $nextYear;
-            $date       = sprintf('%04d-%02d-01', $actualYear, $month);
-            $type       = 'mois';
-            $stmt->bind_param("sdss", $identifier, $amount, $type, $date);
-            $stmt->execute();
+            $date = sprintf('%04d-%02d-01', $actualYear, $month);
+            $type = 'mois';
+            $ins->bind_param("sdss", $identifier, $amount, $type, $date);
+            $ins->execute();
         }
 
-        // Assurance
         if ($assuranceAmount > 0) {
-            $date = sprintf('%04d-09-01', $sportYear);
-            $type = 'assurance';
-            $stmt->bind_param("sdss", $identifier, $assuranceAmount, $type, $date);
-            $stmt->execute();
+            $date = sprintf('%04d-09-01', $sportYear); $type = 'assurance';
+            $ins->bind_param("sdss", $identifier, $assuranceAmount, $type, $date); $ins->execute();
         }
-
-        // Adhesion
         if ($adhesionAmount > 0) {
-            $date = sprintf('%04d-09-01', $sportYear);
-            $type = 'adhesion';
-            $stmt->bind_param("sdss", $identifier, $adhesionAmount, $type, $date);
-            $stmt->execute();
+            $date = sprintf('%04d-09-01', $sportYear); $type = 'adhesion';
+            $ins->bind_param("sdss", $identifier, $adhesionAmount, $type, $date); $ins->execute();
         }
-
-        // Jan exam
         if ($examJanAmount > 0) {
-            $date = sprintf('%04d-01-01', $nextYear);
-            $type = 'exam';
-            $stmt->bind_param("sdss", $identifier, $examJanAmount, $type, $date);
-            $stmt->execute();
+            $date = sprintf('%04d-01-01', $nextYear); $type = 'exam';
+            $ins->bind_param("sdss", $identifier, $examJanAmount, $type, $date); $ins->execute();
         }
-
-        // Jun exam
         if ($examJunAmount > 0) {
-            $date = sprintf('%04d-06-01', $nextYear);
-            $type = 'exam';
-            $stmt->bind_param("sdss", $identifier, $examJunAmount, $type, $date);
-            $stmt->execute();
+            $date = sprintf('%04d-06-01', $nextYear); $type = 'exam';
+            $ins->bind_param("sdss", $identifier, $examJunAmount, $type, $date); $ins->execute();
         }
 
-        $stmt->close();
+        $ins->close();
     }
 
     public function getByYearAndType($year, $type) {

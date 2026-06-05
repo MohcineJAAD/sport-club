@@ -22,14 +22,16 @@ if (empty($identifier)) {
     exit();
 }
 
-// Build month amounts: only include months where the recorded price > 0
+// Amounts are zeroed by JS for unchanged unpaid cells, so only changed/paid ones have value > 0
 $monthAmounts = [];
 foreach ($_POST['amounts'] ?? [] as $m => $amt) {
-    $amt = (float)$amt;
-    if ($amt > 0) {
-        $monthAmounts[(int)$m] = $amt;
-    }
+    $monthAmounts[(int)$m] = (float)$amt; // 0 = erase, >0 = record
 }
+
+$assuranceAmount = (float)($_POST['assurance_amount'] ?? 0);
+$adhesionAmount  = (float)($_POST['adhesion_amount']  ?? 0);
+$examJanAmount   = (float)($_POST['exam_jan_amount']  ?? 0);
+$examJunAmount   = (float)($_POST['exam_jun_amount']  ?? 0);
 
 $payment = new Payment($conn);
 $payment->saveCard(
