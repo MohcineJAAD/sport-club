@@ -38,22 +38,24 @@ class Plan {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function add($name, $price, $description, $assurance, $adherence) {
+    public function add($name, $price, $description, $assurance, $adherence, $examPrice = 0)
+    {
         $stmt = $this->conn->prepare("
-            INSERT INTO plans (name, price, description, assurance, adherence)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO plans (name, price, description, assurance, adherence, exam_price)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
-        $stmt->bind_param("sdsdd", $name, $price, $description, $assurance, $adherence);
+        $stmt->bind_param("sdsddd", $name, $price, $description, $assurance, $adherence, $examPrice);
         $stmt->execute();
         $stmt->close();
     }
 
-    public function update($id, $name, $price, $description, $assurance, $adherence) {
+    public function update($id, $name, $price, $description, $assurance, $adherence, $examPrice = 0)
+    {
         $stmt = $this->conn->prepare("
-            UPDATE plans SET name=?, price=?, description=?, assurance=?, adherence=?
+            UPDATE plans SET name=?, price=?, description=?, assurance=?, adherence=?,  exam_price=?
             WHERE id=?
         ");
-        $stmt->bind_param("sdsddi", $name, $price, $description, $assurance, $adherence, $id);
+        $stmt->bind_param("sdsdddi", $name, $price, $description, $assurance, $adherence, $examPrice, $id);
         $stmt->execute();
         $stmt->close();
     }

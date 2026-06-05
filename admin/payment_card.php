@@ -5,11 +5,9 @@ Auth::check();
 
 $identifier = trim($_GET['id'] ?? '');
 
-// Default sport year: September marks the start
 $nowYear  = (int)date('Y');
 $nowMonth = (int)date('n');
 $defaultSportYear = $nowMonth >= 9 ? $nowYear : $nowYear - 1;
-
 $year = (int)($_GET['year'] ?? $defaultSportYear);
 
 if (empty($identifier)) {
@@ -30,23 +28,24 @@ $member = $memberRows[0];
 $cardData = $payment->getCardData($identifier, $year);
 $years    = range($defaultSportYear, 2020);
 
-// Months in sport-year order: Sep→Aug
+// Sport-year month order: Sep → Aug
 $months = [
-    9  => 'شتنبر',  10 => 'أكتوبر', 11 => 'نونبر',  12 => 'دجنبر',
-    1  => 'يناير',  2  => 'فبراير', 3  => 'مارس',   4  => 'أبريل',
-    5  => 'مايو',   6  => 'يونيو',  7  => 'يوليو',  8  => 'غشت',
+    9=>'شتنبر', 10=>'أكتوبر', 11=>'نونبر', 12=>'دجنبر',
+    1=>'يناير',  2=>'فبراير',  3=>'مارس',   4=>'أبريل',
+    5=>'مايو',   6=>'يونيو',   7=>'يوليو',  8=>'غشت',
 ];
 
-$imgSrc = !empty($member['image_path'])
+$imgSrc   = !empty($member['image_path'])
     ? '/sport-club/assets/uploads/' . $member['image_path']
     : '/sport-club/assets/images/defult_image.png';
-
 $hasImage = !empty($member['image_path']);
 $hasBc    = !empty($member['BC_path']);
 
 $monthlyDue      = $cardData['monthlyDue'];
-$attendanceCounts= $cardData['attendanceCounts'];
-$monthsPaid      = $cardData['monthsPaid'];   // [month => amount]
+$monthsPaid      = $cardData['monthsPaid'];        // [month => amount]
+$attendanceCounts= $cardData['attendanceCounts'];  // [month => count]
+$totalSessions   = $cardData['totalSessions'];
+$inTrial         = $totalSessions < 5;
 ?>
 <?php require 'layout/header.php'; ?>
 
@@ -54,30 +53,35 @@ $monthsPaid      = $cardData['monthsPaid'];   // [month => amount]
 
 <div class="absences p-20 bg-fff rad-10 m-20">
 
-    <!-- Header: member info + image + warnings -->
-    <div class="payment-card-header mb-20">
-        <div class="member-photo-wrap">
-            <img src="<?= htmlspecialchars($imgSrc) ?>" alt="صورة" class="member-photo">
+    <!-- Header -->
+    <div class="pc-header mb-20">
+        <div class="pc-photo-col">
+            <img src="<?= htmlspecialchars($imgSrc) ?>" alt="صورة" class="pc-photo">
             <?php if (!$hasImage): ?>
-                <span class="doc-warning" title="لا توجد صورة">⚠ لا صورة</span>
+                <span class="doc-warn">⚠ لا صورة</span>
             <?php endif; ?>
             <?php if (!$hasBc): ?>
-                <span class="doc-warning" title="لا يوجد عقد ميلاد">⚠ لا عقد ميلاد</span>
+                <span class="doc-warn">⚠ لا عقد ميلاد</span>
             <?php endif; ?>
         </div>
-        <div class="member-info-wrap">
+        <div class="pc-info-col">
             <h2 class="mt-0 mb-5">
                 <?= htmlspecialchars($member['prenom'] . ' ' . $member['nom']) ?>
                 <small class="fs-14 color-c-60"><?= htmlspecialchars($identifier) ?></small>
             </h2>
             <p class="mb-5 color-c-60"><?= htmlspecialchars($member['type'] ?? '') ?></p>
-            <p class="mb-0">
-                الواجب الشهري:
-                <strong><?= number_format($monthlyDue, 2) ?> DH</strong>
-                <?php if ($member['monthly_price'] !== null && $member['monthly_price'] !== ''): ?>
-                    <span class="badge-special">سعر خاص</span>
+            <div class="pc-badges">
+                <?php if ($inTrial): ?>
+                    <span class="badge-trial">⏳ فترة تجريبية (<?= $totalSessions ?>/5 حصص)</span>
+                <?php else: ?>
+                    <span class="badge-active">✓ منخرط (<?= $totalSessions ?> حصة)</span>
                 <?php endif; ?>
-            </p>
+                <?php if ($member['monthly_price'] !== null && $member['monthly_price'] !== ''): ?>
+                    <span class="badge-special">سعر خاص: <?= number_format((float)$member['monthly_price'], 2) ?> DH</span>
+                <?php else: ?>
+                    <span class="badge-plan">الواجب: <?= number_format($monthlyDue, 2) ?> DH</span>
+                <?php endif; ?>
+            </div>
         </div>
         <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
     </div>
@@ -93,222 +97,309 @@ $monthsPaid      = $cardData['monthsPaid'];   // [month => amount]
 
     <form method="POST" action="/sport-club/actions/payment_card_save.php" id="cardForm">
         <input type="hidden" name="identifier" value="<?= htmlspecialchars($identifier) ?>">
-        <input type="hidden" name="year" id="yearInput" value="<?= $year ?>">
+        <input type="hidden" name="year" value="<?= $year ?>">
 
-        <!-- Monthly cells -->
-        <div class="flex-table" id="monthGrid">
+        <!-- ─── Monthly cells ─── -->
+        <div class="flex-table">
             <?php foreach (array_chunk(array_keys($months), 3) as $chunk): ?>
                 <div class="flex-row">
                     <?php foreach ($chunk as $num):
                         $name    = $months[$num];
-                        $paid    = isset($monthsPaid[$num]);
-                        $paidAmt = $paid ? $monthsPaid[$num] : 0;
+                        $paidAmt = $monthsPaid[$num] ?? 0;
+                        $paid    = $paidAmt > 0;
                         $att     = $attendanceCounts[$num] ?? 0;
-                        $overdue = !$paid && $att >= 5;
-                        $partial = $paid && $paidAmt < $monthlyDue - 0.01;
+                        $overdue = !$paid && !$inTrial && $att >= 5;
+                        $partial = $paid && $monthlyDue > 0 && $paidAmt < $monthlyDue - 0.01;
 
-                        // Actual calendar year for this month
                         $actualYear = $num >= 9 ? $year : $year + 1;
-                        // Is this month in the future?
-                        $isFuture = ($actualYear > $nowYear) || ($actualYear === $nowYear && $num > $nowMonth);
+                        $isFuture   = ($actualYear > $nowYear) || ($actualYear === $nowYear && $num > $nowMonth);
 
-                        $cellClass = 'flex-cell';
-                        if ($paid && !$partial)  $cellClass .= ' paid';
-                        elseif ($partial)         $cellClass .= ' partial';
-                        elseif ($overdue)         $cellClass .= ' overdue';
-                        if ($isFuture)            $cellClass .= ' future-month';
+                        $cls = 'flex-cell';
+                        if ($paid && !$partial)  $cls .= ' paid';
+                        elseif ($partial)         $cls .= ' cell-partial';
+                        elseif ($overdue)         $cls .= ' cell-overdue';
+                        if ($isFuture)            $cls .= ' cell-future';
                     ?>
-                        <div class="<?= $cellClass ?>" data-month="<?= $num ?>" data-due="<?= $monthlyDue ?>">
+                        <div class="<?= $cls ?>" data-due="<?= $monthlyDue ?>">
 
-                            <!-- View mode -->
-                            <div class="cell-view">
-                                <h4 class="mb-5"><?= $name ?></h4>
-                                <?php if ($paid): ?>
-                                    <span class="cell-paid-amt"><?= number_format($paidAmt, 2) ?> DH</span>
-                                    <?php if ($partial): ?>
-                                        <span class="cell-rest-badge">متبقي <?= number_format($monthlyDue - $paidAmt, 2) ?> DH</span>
-                                    <?php endif; ?>
+                            <!-- VIEW -->
+                            <div class="cv">
+                                <h4 class="mb-4"><?= $name ?></h4>
+                                <?php if ($paid && !$partial): ?>
+                                    <span class="amt-green">✓ <?= number_format($paidAmt, 2) ?> DH</span>
+                                <?php elseif ($partial): ?>
+                                    <span class="amt-orange"><?= number_format($paidAmt, 2) ?> / <?= number_format($monthlyDue, 2) ?> DH</span>
+                                    <small class="rest-lbl">متبقي <?= number_format($monthlyDue - $paidAmt, 2) ?> DH</small>
                                 <?php elseif ($overdue): ?>
-                                    <span class="cell-overdue-badge">⚠ <?= $att ?> حصص</span>
+                                    <span class="amt-red">⚠ <?= $att ?> حصص</span>
+                                    <small class="color-aaa"><?= number_format($monthlyDue, 2) ?> DH</small>
                                 <?php elseif (!$isFuture): ?>
-                                    <span class="cell-unpaid-amt"><?= number_format($monthlyDue, 2) ?> DH</span>
+                                    <span class="amt-gray"><?= number_format($monthlyDue, 2) ?> DH</span>
                                 <?php endif; ?>
                                 <?php if ($att > 0 && !$isFuture): ?>
-                                    <small class="cell-att"><?= $att ?> حضور</small>
+                                    <small class="att-lbl"><?= $att ?> حضور</small>
                                 <?php endif; ?>
                             </div>
 
-                            <!-- Edit mode (hidden by default) -->
-                            <div class="cell-edit hidden">
-                                <h4 class="mb-5"><?= $name ?></h4>
-                                <small class="color-aaa">المستحق: <?= number_format($monthlyDue, 2) ?> DH</small>
-                                <input type="number"
-                                       name="amounts[<?= $num ?>]"
-                                       class="cash-input"
-                                       placeholder="النقد"
-                                       step="0.01" min="0"
-                                       value="<?= $paidAmt > 0 ? $paidAmt : '' ?>">
-                                <div class="rest-display"></div>
+                            <!-- EDIT -->
+                            <div class="ce hidden">
+                                <h4 class="mb-4"><?= $name ?></h4>
+                                <div class="ce-row">
+                                    <label>المستحق</label>
+                                    <input type="number" name="amounts[<?= $num ?>]"
+                                           class="inp-price" step="0.01" min="0"
+                                           value="<?= $paid ? $paidAmt : $monthlyDue ?>">
+                                    <span class="dh">DH</span>
+                                </div>
+                                <div class="ce-row">
+                                    <label>النقد</label>
+                                    <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                                    <span class="dh">DH</span>
+                                </div>
+                                <div class="ce-rest"></div>
                             </div>
+
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endforeach; ?>
 
-            <!-- Assurance + Adhesion row -->
-            <div class="flex-row">
-                <div class="flex-cell <?= $cardData['assurancePaid'] ? 'paid' : '' ?>">
-                    <div class="cell-view">
-                        <h4 class="mb-5">التأمين</h4>
-                        <span class="cell-unpaid-amt"><?= number_format($cardData['assurancePrice'], 2) ?> DH</span>
+            <!-- ─── Assurance + Adhesion ─── -->
+            <div class="flex-row special-row">
+                <?php
+                $assAmt  = $cardData['assuranceAmount'];
+                $assPrice= $cardData['assurancePrice'];
+                $assPartial = $assAmt > 0 && $assAmt < $assPrice - 0.01;
+                $assCls  = 'flex-cell' . ($assAmt > 0 ? ($assPartial ? ' cell-partial' : ' paid') : '');
+
+                $adhAmt  = $cardData['adhesionAmount'];
+                $adhPrice= $cardData['adhesionPrice'];
+                $adhPartial = $adhAmt > 0 && $adhAmt < $adhPrice - 0.01;
+                $adhCls  = 'flex-cell' . ($adhAmt > 0 ? ($adhPartial ? ' cell-partial' : ' paid') : '');
+                ?>
+
+                <!-- Assurance -->
+                <div class="<?= $assCls ?>" data-due="<?= $assPrice ?>">
+                    <div class="cv">
+                        <h4 class="mb-4">التأمين</h4>
+                        <?php if ($assAmt > 0 && !$assPartial): ?>
+                            <span class="amt-green">✓ <?= number_format($assAmt, 2) ?> DH</span>
+                        <?php elseif ($assPartial): ?>
+                            <span class="amt-orange"><?= number_format($assAmt, 2) ?> / <?= number_format($assPrice, 2) ?> DH</span>
+                        <?php else: ?>
+                            <span class="amt-gray"><?= number_format($assPrice, 2) ?> DH</span>
+                        <?php endif; ?>
                     </div>
-                    <div class="cell-edit hidden">
-                        <h4 class="mb-5">التأمين</h4>
-                        <input type="checkbox" name="assurance" value="1" <?= $cardData['assurancePaid'] ? 'checked' : '' ?>>
-                        <small><?= number_format($cardData['assurancePrice'], 2) ?> DH</small>
+                    <div class="ce hidden">
+                        <h4 class="mb-4">التأمين</h4>
+                        <div class="ce-row">
+                            <label>المستحق</label>
+                            <input type="number" name="assurance_amount" class="inp-price"
+                                   step="0.01" min="0" value="<?= $assAmt > 0 ? $assAmt : $assPrice ?>">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-row">
+                            <label>النقد</label>
+                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-rest"></div>
                     </div>
                 </div>
-                <div class="flex-cell <?= $cardData['adhesionPaid'] ? 'paid' : '' ?>">
-                    <div class="cell-view">
-                        <h4 class="mb-5">الانخراط السنوي</h4>
-                        <span class="cell-unpaid-amt"><?= number_format($cardData['adhesionPrice'], 2) ?> DH</span>
+
+                <!-- Adhesion -->
+                <div class="<?= $adhCls ?>" data-due="<?= $adhPrice ?>">
+                    <div class="cv">
+                        <h4 class="mb-4">الانخراط السنوي</h4>
+                        <?php if ($adhAmt > 0 && !$adhPartial): ?>
+                            <span class="amt-green">✓ <?= number_format($adhAmt, 2) ?> DH</span>
+                        <?php elseif ($adhPartial): ?>
+                            <span class="amt-orange"><?= number_format($adhAmt, 2) ?> / <?= number_format($adhPrice, 2) ?> DH</span>
+                        <?php else: ?>
+                            <span class="amt-gray"><?= number_format($adhPrice, 2) ?> DH</span>
+                        <?php endif; ?>
                     </div>
-                    <div class="cell-edit hidden">
-                        <h4 class="mb-5">الانخراط السنوي</h4>
-                        <input type="checkbox" name="adhesion" value="1" <?= $cardData['adhesionPaid'] ? 'checked' : '' ?>>
-                        <small><?= number_format($cardData['adhesionPrice'], 2) ?> DH</small>
+                    <div class="ce hidden">
+                        <h4 class="mb-4">الانخراط السنوي</h4>
+                        <div class="ce-row">
+                            <label>المستحق</label>
+                            <input type="number" name="adhesion_amount" class="inp-price"
+                                   step="0.01" min="0" value="<?= $adhAmt > 0 ? $adhAmt : $adhPrice ?>">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-row">
+                            <label>النقد</label>
+                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-rest"></div>
                     </div>
                 </div>
-                <div class="flex-cell"></div>
             </div>
-        </div>
+
+            <!-- ─── Belt Exams ─── -->
+            <?php
+            $examPrice   = $cardData['examPrice'];
+            $janAmt      = $cardData['examJanAmount'];
+            $junAmt      = $cardData['examJunAmount'];
+            $janPartial  = $janAmt > 0 && $examPrice > 0 && $janAmt < $examPrice - 0.01;
+            $junPartial  = $junAmt > 0 && $examPrice > 0 && $junAmt < $examPrice - 0.01;
+            $janCls      = 'flex-cell' . ($janAmt > 0 ? ($janPartial ? ' cell-partial' : ' paid') : '');
+            $junCls      = 'flex-cell' . ($junAmt > 0 ? ($junPartial ? ' cell-partial' : ' paid') : '');
+            ?>
+            <div class="flex-row exam-row">
+                <!-- Jan exam -->
+                <div class="<?= $janCls ?>" data-due="<?= $examPrice ?>">
+                    <div class="cv">
+                        <h4 class="mb-4">🥋 فحص يناير</h4>
+                        <?php if ($janAmt > 0 && !$janPartial): ?>
+                            <span class="amt-green">✓ <?= number_format($janAmt, 2) ?> DH</span>
+                        <?php elseif ($janPartial): ?>
+                            <span class="amt-orange"><?= number_format($janAmt, 2) ?> / <?= number_format($examPrice, 2) ?> DH</span>
+                        <?php else: ?>
+                            <span class="amt-gray"><?= number_format($examPrice, 2) ?> DH</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="ce hidden">
+                        <h4 class="mb-4">🥋 فحص يناير</h4>
+                        <div class="ce-row">
+                            <label>المستحق</label>
+                            <input type="number" name="exam_jan_amount" class="inp-price"
+                                   step="0.01" min="0" value="<?= $janAmt > 0 ? $janAmt : $examPrice ?>">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-row">
+                            <label>النقد</label>
+                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-rest"></div>
+                        <small class="color-aaa">اتركه 0 إن لم يشارك</small>
+                    </div>
+                </div>
+
+                <!-- Jun exam -->
+                <div class="<?= $junCls ?>" data-due="<?= $examPrice ?>">
+                    <div class="cv">
+                        <h4 class="mb-4">🥋 فحص يونيو</h4>
+                        <?php if ($junAmt > 0 && !$junPartial): ?>
+                            <span class="amt-green">✓ <?= number_format($junAmt, 2) ?> DH</span>
+                        <?php elseif ($junPartial): ?>
+                            <span class="amt-orange"><?= number_format($junAmt, 2) ?> / <?= number_format($examPrice, 2) ?> DH</span>
+                        <?php else: ?>
+                            <span class="amt-gray"><?= number_format($examPrice, 2) ?> DH</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="ce hidden">
+                        <h4 class="mb-4">🥋 فحص يونيو</h4>
+                        <div class="ce-row">
+                            <label>المستحق</label>
+                            <input type="number" name="exam_jun_amount" class="inp-price"
+                                   step="0.01" min="0" value="<?= $junAmt > 0 ? $junAmt : $examPrice ?>">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-row">
+                            <label>النقد</label>
+                            <input type="number" class="inp-cash" step="0.01" min="0" placeholder="0.00">
+                            <span class="dh">DH</span>
+                        </div>
+                        <div class="ce-rest"></div>
+                        <small class="color-aaa">اتركه 0 إن لم يشارك</small>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /flex-table -->
 
         <div class="action-buttons">
-            <button type="button" class="btn-shape modify-btn mb-10">
-                <i class="fas fa-edit"></i> تعديل
-            </button>
-            <button type="submit" class="btn-shape save-btn hidden mb-10">
-                <i class="fas fa-save"></i> حفظ
-            </button>
-            <button type="button" class="btn-shape cancel-btn hidden mb-10 bg-c-60 color-fff">
-                <i class="fas fa-times"></i> إلغاء
-            </button>
+            <button type="button" class="btn-shape modify-btn mb-10"><i class="fas fa-edit"></i> تعديل</button>
+            <button type="submit" class="btn-shape save-btn hidden mb-10"><i class="fas fa-save"></i> حفظ</button>
+            <button type="button" class="btn-shape cancel-btn hidden mb-10 bg-c-60 color-fff"><i class="fas fa-times"></i> إلغاء</button>
         </div>
     </form>
 </div>
 
 <style>
-.payment-card-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-    flex-wrap: wrap;
+/* Header */
+.pc-header { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.pc-photo-col { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.pc-photo { width:88px; height:88px; border-radius:50%; object-fit:cover; border:2px solid #ccc; }
+.doc-warn { background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:4px;
+            padding:2px 7px; font-size:12px; white-space:nowrap; }
+.pc-info-col { flex:1; }
+.pc-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.badge-trial  { background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:4px; padding:2px 8px; font-size:12px; }
+.badge-active { background:#d4edda; color:#155724; border:1px solid #c3e6cb; border-radius:4px; padding:2px 8px; font-size:12px; }
+.badge-special{ background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; border-radius:4px; padding:2px 8px; font-size:12px; }
+.badge-plan   { background:#f8f9fa; color:#495057; border:1px solid #dee2e6; border-radius:4px; padding:2px 8px; font-size:12px; }
+
+/* Cell status */
+.cell-overdue { background:#ffe0b2; }
+.cell-partial { background:#fff9c4; }
+.cell-future  { opacity:.4; pointer-events:none; }
+.exam-row .flex-cell,
+.special-row .flex-cell { flex: 1 1 50%; }
+
+/* Cell text */
+.amt-green  { color:#1a7a3a; font-weight:bold; font-size:13px; }
+.amt-orange { color:#b36b00; font-weight:bold; font-size:13px; }
+.amt-red    { color:#c00; font-weight:bold; font-size:13px; }
+.amt-gray   { color:#888; font-size:13px; }
+.rest-lbl   { display:block; color:#b36b00; font-size:11px; }
+.att-lbl    { display:block; color:#aaa; font-size:11px; margin-top:3px; }
+.mb-4       { margin-bottom:4px; }
+
+/* Edit mode cell */
+.ce-row { display:flex; align-items:center; gap:4px; margin:3px 0; font-size:12px; }
+.ce-row label { width:48px; text-align:right; color:#666; }
+.inp-price, .inp-cash {
+    width:70px; padding:4px 5px; border:1px solid #ccc;
+    border-radius:4px; font-size:13px; text-align:center;
 }
-.member-photo-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-}
-.member-photo {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #ccc;
-}
-.doc-warning {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffc107;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    white-space: nowrap;
-}
-.member-info-wrap {
-    flex: 1;
-}
-.badge-special {
-    background: #d1ecf1;
-    color: #0c5460;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    margin-right: 6px;
-}
-/* Cell status colors */
-.overdue  { background-color: #ffe0b2; }
-.partial  { background-color: #fff9c4; }
-.future-month { opacity: 0.4; }
-/* Cell content */
-.cell-paid-amt    { color: #1a7a3a; font-weight: bold; font-size: 14px; }
-.cell-unpaid-amt  { color: #666; font-size: 13px; }
-.cell-overdue-badge { color: #b36b00; font-size: 13px; font-weight: bold; }
-.cell-rest-badge  { background: #fffbe6; color: #b36b00; border-radius: 4px;
-                    padding: 1px 6px; font-size: 12px; }
-.cell-att         { color: #999; display: block; margin-top: 4px; }
-/* Edit mode */
-.cash-input {
-    width: 90%;
-    padding: 6px;
-    text-align: center;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-top: 6px;
-    font-size: 14px;
-}
-.rest-display {
-    margin-top: 4px;
-    font-size: 13px;
-    font-weight: bold;
-    min-height: 18px;
-}
-.rest-positive { color: #1a7a3a; }
-.rest-negative { color: #c00; }
+.inp-price { border-color:#203a85; }
+.dh { font-size:11px; color:#888; }
+.ce-rest { font-size:12px; font-weight:bold; min-height:16px; margin-top:2px; }
+.rest-pos { color:#1a7a3a; }
+.rest-neg { color:#c00; }
 </style>
 
 <script>
-const modifyBtn = document.querySelector('.modify-btn');
+const modBtn    = document.querySelector('.modify-btn');
 const saveBtn   = document.querySelector('.save-btn');
 const cancelBtn = document.querySelector('.cancel-btn');
 
-modifyBtn.addEventListener('click', function () {
-    document.querySelectorAll('.cell-view').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.cell-edit').forEach(el => el.classList.remove('hidden'));
-    modifyBtn.classList.add('hidden');
+modBtn.addEventListener('click', () => {
+    document.querySelectorAll('.cv').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.ce').forEach(el => el.classList.remove('hidden'));
+    modBtn.classList.add('hidden');
     saveBtn.classList.remove('hidden');
     cancelBtn.classList.remove('hidden');
 });
 
-cancelBtn.addEventListener('click', function () {
-    window.location.reload();
-});
+cancelBtn.addEventListener('click', () => window.location.reload());
 
-// Calculate rest dynamically
-document.querySelectorAll('.cash-input').forEach(input => {
-    const cell    = input.closest('.flex-cell');
-    const due     = parseFloat(cell.dataset.due) || 0;
-    const display = cell.querySelector('.rest-display');
+// Live change/rest calculation for every cell
+document.querySelectorAll('.flex-cell').forEach(cell => {
+    const priceIn = cell.querySelector('.inp-price');
+    const cashIn  = cell.querySelector('.inp-cash');
+    const restDiv = cell.querySelector('.ce-rest');
+    if (!priceIn || !cashIn || !restDiv) return;
 
-    function update() {
-        const cash = parseFloat(input.value) || 0;
-        if (input.value === '') {
-            display.textContent = '';
-            return;
-        }
-        const rest = cash - due;
-        if (rest >= 0) {
-            display.textContent = 'الباقي: ' + rest.toFixed(2) + ' DH';
-            display.className   = 'rest-display rest-positive';
+    function calc() {
+        const price = parseFloat(priceIn.value) || 0;
+        const cash  = parseFloat(cashIn.value)  || 0;
+        if (!cashIn.value) { restDiv.textContent = ''; return; }
+        const diff = cash - price;
+        if (diff >= 0) {
+            restDiv.textContent = 'الباقي: +' + diff.toFixed(2) + ' DH';
+            restDiv.className   = 'ce-rest rest-pos';
         } else {
-            display.textContent = 'ناقص: ' + Math.abs(rest).toFixed(2) + ' DH';
-            display.className   = 'rest-display rest-negative';
+            restDiv.textContent = 'ناقص: ' + Math.abs(diff).toFixed(2) + ' DH';
+            restDiv.className   = 'ce-rest rest-neg';
         }
     }
-    input.addEventListener('input', update);
-    // Run on page load to restore values
-    if (input.value) update();
+    priceIn.addEventListener('input', calc);
+    cashIn.addEventListener('input', calc);
 });
 
 document.getElementById('yearSelect').addEventListener('change', function () {

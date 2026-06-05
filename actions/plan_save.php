@@ -13,6 +13,7 @@ $price      = (float) ($_POST['price']      ?? 0);
 $description= trim($_POST['description'] ?? '');
 $assurance  = (float) ($_POST['assurance']  ?? 0);
 $adherence  = (float) ($_POST['adherence']  ?? 0);
+$examPrice  = (float) ($_POST['exam_price'] ?? 0);
 
 if (empty($name) || $price <= 0) {
     $_SESSION['message'] = "يرجى ملء جميع الحقول بشكل صحيح";
@@ -22,7 +23,7 @@ if (empty($name) || $price <= 0) {
 }
 
 $plan = new Plan($conn);
-$plan->add($name, $price, $description, $assurance, $adherence);
+$plan->add($name, $price, $description, $assurance, $adherence, $examPrice);
 
 $_SESSION['message'] = "تمت إضافة الخطة بنجاح";
 $_SESSION['status']  = "success";

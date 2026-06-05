@@ -33,6 +33,10 @@ $plans = $plan->getAll();
                     <label>الاشتراك (DH)</label>
                     <input type="number" name="adherence" step="0.01" required>
                 </div>
+                <div class="input-field">
+                    <label>رسوم الفحص (DH)</label>
+                    <input type="number" name="exam_price" step="0.01" value="0" required>
+                </div>
             </div>
             <div class="row mt-20">
                 <div class="input-field">
@@ -57,6 +61,7 @@ $plans = $plan->getAll();
                         <th>السعر</th>
                         <th>التأمين</th>
                         <th>الاشتراك</th>
+                        <th>رسوم الفحص</th>
                         <th>عدد المشتركين</th>
                         <th>إجراءات</th>
                     </tr>
@@ -68,6 +73,7 @@ $plans = $plan->getAll();
                             <td><?= number_format($p['price'], 2) ?> DH</td>
                             <td><?= number_format($p['assurance'], 2) ?> DH</td>
                             <td><?= number_format($p['adherence'], 2) ?> DH</td>
+                             <td><?= number_format($p['exam_price'] ?? 0, 2) ?> DH</td>
                             <td><?= $p['adherents_count'] ?></td>
                             <td>
                                 <a href="/sport-club/actions/plan_delete.php?id=<?= $p['id'] ?>">

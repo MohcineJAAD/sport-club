@@ -47,8 +47,7 @@ class Payment {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function getByMonth($month)
-    {
+    public function getByMonth($month) {
         $stmt = $this->conn->prepare("
             SELECT payments.*, adherents.nom, adherents.prenom
             FROM payments
@@ -89,12 +88,24 @@ class Payment {
 
     /**
      * Sport year: September $sportYear – August ($sportYear+1).
-     * Returns monthly amounts paid (keyed by month number), attendance counts, and pricing.
+     *
+     * Returns:
+     *   monthsPaid       [month => amount]   – months with a recorded payment
+     *   assuranceAmount  float               – 0 if unpaid
+     *   adhesionAmount   float               – 0 if unpaid
+     *   examJanAmount    float               – 0 if not taken / unpaid
+     *   examJunAmount    float               – 0 if not taken / unpaid
+     *   monthlyDue       float               – special price or plan price
+     *   assurancePrice   float               – plan assurance price
+     *   adhesionPrice    float               – plan adhesion price
+     *   examPrice        float               – plan exam price
+     *   attendanceCounts [month => count]
+     *   totalSessions    int                 – all-time attendance count
      */
     public function getCardData(string $identifier, int $sportYear): array {
         $nextYear = $sportYear + 1;
 
-        // Payments within the sport year
+        // Payments within the sport year (including exam types)
         $stmt = $this->conn->prepare("
             SELECT type, payment_date, amount FROM payments
             WHERE identifier = ?
@@ -106,7 +117,7 @@ class Payment {
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
 
-        // Attendance counts per month within the sport year
+        // Attendance per month within the sport year
         $stmt = $this->conn->prepare("
             SELECT MONTH(date) AS mon, COUNT(*) AS cnt
             FROM attendance
@@ -120,10 +131,19 @@ class Payment {
         $attRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
 
-        // Pricing: adherent special price or plan price
+        // Total all-time sessions (for trial period indicator)
+        $stmt = $this->conn->prepare("SELECT COUNT(*) AS total FROM attendance WHERE identifier = ?");
+        $stmt->bind_param("s", $identifier);
+        $stmt->execute();
+        $totalSessions = (int)$stmt->get_result()->fetch_assoc()['total'];
+        $stmt->close();
+
+        // Pricing from adherent profile + plan
         $stmt = $this->conn->prepare("
             SELECT a.monthly_price, p.price,
-                   p.assurance AS assurance_price, p.adherence AS adhesion_price
+                   p.assurance AS assurance_price,
+                   p.adherence AS adhesion_price,
+                   p.exam_price
             FROM adherents a
             LEFT JOIN plans p ON a.type = p.name
             WHERE a.identifier = ?
@@ -137,18 +157,24 @@ class Payment {
             ? (float)$pricing['monthly_price']
             : (float)($pricing['price'] ?? 0);
 
-        $monthsPaid    = [];
-        $assurancePaid = false;
-        $adhesionPaid  = false;
+        $monthsPaid       = [];
+        $assuranceAmount  = 0.0;
+        $adhesionAmount   = 0.0;
+        $examJanAmount    = 0.0;
+        $examJunAmount    = 0.0;
 
         foreach ($rows as $row) {
-            if ($row['type'] === 'assurance') {
-                $assurancePaid = true;
-            } elseif ($row['type'] === 'adhesion') {
-                $adhesionPaid = true;
-            } else {
-                $m = (int)date('n', strtotime($row['payment_date']));
-                $monthsPaid[$m] = (float)$row['amount'];
+            $m = (int)date('n', strtotime($row['payment_date']));
+            $amt = (float)$row['amount'];
+            switch ($row['type']) {
+                case 'assurance': $assuranceAmount = $amt; break;
+                case 'adhesion':  $adhesionAmount  = $amt; break;
+                case 'exam':
+                    if ($m === 1) $examJanAmount = $amt;
+                    if ($m === 6) $examJunAmount = $amt;
+                    break;
+                default: // 'mois'
+                    $monthsPaid[$m] = $amt;
             }
         }
 
@@ -159,37 +185,40 @@ class Payment {
 
         return [
             'monthsPaid'       => $monthsPaid,
-            'assurancePaid'    => $assurancePaid,
-            'adhesionPaid'     => $adhesionPaid,
+            'assuranceAmount'  => $assuranceAmount,
+            'adhesionAmount'   => $adhesionAmount,
+            'examJanAmount'    => $examJanAmount,
+            'examJunAmount'    => $examJunAmount,
             'monthlyDue'       => $monthlyDue,
             'assurancePrice'   => (float)($pricing['assurance_price'] ?? 0),
             'adhesionPrice'    => (float)($pricing['adhesion_price']  ?? 0),
+            'examPrice'        => (float)($pricing['exam_price']      ?? 0),
             'attendanceCounts' => $attendanceCounts,
+            'totalSessions'    => $totalSessions,
         ];
     }
 
     /**
-     * Save payment card for sport year.
-     * $monthAmounts: [month_number => amount_paid]
+     * Save payment card for a sport year.
+     *
+     * $monthAmounts    [month => amount]  – only months where amount > 0
+     * $assuranceAmount float              – 0 means not paid
+     * $adhesionAmount  float              – 0 means not paid
+     * $examJanAmount   float              – 0 means not taken / not paid
+     * $examJunAmount   float              – 0 means not taken / not paid
      */
-    public function saveCard(string $identifier, int $sportYear, array $monthAmounts, bool $assurance, bool $adhesion): void {
+    public function saveCard(
+        string $identifier,
+        int    $sportYear,
+        array  $monthAmounts,
+        float  $assuranceAmount,
+        float  $adhesionAmount,
+        float  $examJanAmount,
+        float  $examJunAmount
+    ): void {
         $nextYear = $sportYear + 1;
 
-        // Get plan prices for assurance/adhesion
-        $stmt = $this->conn->prepare("
-            SELECT p.assurance AS assurance_price, p.adherence AS adhesion_price
-            FROM plans p JOIN adherents a ON a.type = p.name
-            WHERE a.identifier = ?
-        ");
-        $stmt->bind_param("s", $identifier);
-        $stmt->execute();
-        $plan = $stmt->get_result()->fetch_assoc() ?? [];
-        $stmt->close();
-
-        $assurancePrice = (float)($plan['assurance_price'] ?? 0);
-        $adhesionPrice  = (float)($plan['adhesion_price']  ?? 0);
-
-        // Delete all payments for this sport year
+        // Delete all payments (all types) for this sport year
         $stmt = $this->conn->prepare("
             DELETE FROM payments WHERE identifier = ?
               AND ((YEAR(payment_date) = ? AND MONTH(payment_date) >= 9)
@@ -199,36 +228,56 @@ class Payment {
         $stmt->execute();
         $stmt->close();
 
-        $stmt = $this->conn->prepare("INSERT INTO payments (identifier, amount, type, payment_date) VALUES (?, ?, ?, ?)");
+        $stmt = $this->conn->prepare(
+            "INSERT INTO payments (identifier, amount, type, payment_date) VALUES (?, ?, ?, ?)"
+        );
 
+        // Monthly payments
         foreach ($monthAmounts as $month => $amount) {
             $month      = (int)$month;
-            $actualYear = ($month >= 9) ? $sportYear : $nextYear;
+            $actualYear = $month >= 9 ? $sportYear : $nextYear;
             $date       = sprintf('%04d-%02d-01', $actualYear, $month);
             $type       = 'mois';
             $stmt->bind_param("sdss", $identifier, $amount, $type, $date);
             $stmt->execute();
         }
 
-        if ($assurance) {
+        // Assurance
+        if ($assuranceAmount > 0) {
             $date = sprintf('%04d-09-01', $sportYear);
             $type = 'assurance';
-            $stmt->bind_param("sdss", $identifier, $assurancePrice, $type, $date);
+            $stmt->bind_param("sdss", $identifier, $assuranceAmount, $type, $date);
             $stmt->execute();
         }
 
-        if ($adhesion) {
+        // Adhesion
+        if ($adhesionAmount > 0) {
             $date = sprintf('%04d-09-01', $sportYear);
             $type = 'adhesion';
-            $stmt->bind_param("sdss", $identifier, $adhesionPrice, $type, $date);
+            $stmt->bind_param("sdss", $identifier, $adhesionAmount, $type, $date);
+            $stmt->execute();
+        }
+
+        // Jan exam
+        if ($examJanAmount > 0) {
+            $date = sprintf('%04d-01-01', $nextYear);
+            $type = 'exam';
+            $stmt->bind_param("sdss", $identifier, $examJanAmount, $type, $date);
+            $stmt->execute();
+        }
+
+        // Jun exam
+        if ($examJunAmount > 0) {
+            $date = sprintf('%04d-06-01', $nextYear);
+            $type = 'exam';
+            $stmt->bind_param("sdss", $identifier, $examJunAmount, $type, $date);
             $stmt->execute();
         }
 
         $stmt->close();
     }
 
-    public function getByYearAndType($year, $type)
-    {
+    public function getByYearAndType($year, $type) {
         $stmt = $this->conn->prepare("
             SELECT payments.*, adherents.nom, adherents.prenom, adherents.type AS sport_type
             FROM payments
@@ -243,8 +292,7 @@ class Payment {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function getUnpaidByMonth($month)
-    {
+    public function getUnpaidByMonth($month) {
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                 a.guardian_name, a.guardian_phone
@@ -264,8 +312,7 @@ class Payment {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function getUnpaidByYearAndType($year, $type)
-    {
+    public function getUnpaidByYearAndType($year, $type) {
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                 a.guardian_name, a.guardian_phone
@@ -285,16 +332,14 @@ class Payment {
     }
 
     /**
-     * Returns all active adherents with outstanding debts:
-     * unpaid/partial monthly fees, missing assurance, missing adhesion.
-     * Monthly fees checked from adherent start date to now (sport years).
-     * Assurance/adhesion checked per calendar year.
+     * Black list: all active adherents with unpaid/partial monthly fees,
+     * missing assurance, or missing adhesion — from adhesion date to now.
+     * Exam payments are voluntary so not checked here.
      */
     public function getBlackListData(): array {
         $currentYear  = (int)date('Y');
         $currentMonth = (int)date('n');
 
-        // All active adherents with pricing
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                    a.monthly_price, a.date_adhesion,
@@ -310,8 +355,9 @@ class Payment {
         $adherents = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
 
-        // All payments ever
-        $stmt = $this->conn->prepare("SELECT identifier, type, amount, payment_date FROM payments");
+        $stmt = $this->conn->prepare(
+            "SELECT identifier, type, amount, payment_date FROM payments WHERE type != 'exam'"
+        );
         $stmt->execute();
         $allPayments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
@@ -335,16 +381,12 @@ class Payment {
                 : (float)($adh['plan_price'] ?? 0);
 
             $payments = $paysByAdherent[$adh['identifier']] ?? [];
-
-            // Index monthly payments by "YYYY-MM"
-            $paidYM = [];
-            // Index assurance/adhesion by calendar year
+            $paidYM         = [];
             $assuranceYears = [];
             $adhesionYears  = [];
 
             foreach ($payments as $p) {
                 $y = (int)substr($p['payment_date'], 0, 4);
-                $m = (int)substr($p['payment_date'], 5, 2);
                 if ($p['type'] === 'assurance') {
                     $assuranceYears[$y] = true;
                 } elseif ($p['type'] === 'adhesion') {
@@ -355,17 +397,15 @@ class Payment {
                 }
             }
 
-            // Determine first sport year from adhesion date
-            $startDate  = !empty($adh['date_adhesion']) ? new DateTime($adh['date_adhesion']) : new DateTime('2020-09-01');
-            $startYear  = (int)$startDate->format('Y');
-            $startMonth = (int)$startDate->format('n');
+            $startDate        = !empty($adh['date_adhesion']) ? new DateTime($adh['date_adhesion']) : new DateTime('2020-09-01');
+            $startYear        = (int)$startDate->format('Y');
+            $startMonth       = (int)$startDate->format('n');
             $firstSportYear   = $startMonth >= 9 ? $startYear : $startYear - 1;
             $currentSportYear = $currentMonth >= 9 ? $currentYear : $currentYear - 1;
 
             $issues    = [];
             $totalRest = 0;
 
-            // Check monthly fees across all sport years
             if ($monthlyDue > 0) {
                 for ($sy = $firstSportYear; $sy <= $currentSportYear; $sy++) {
                     foreach ([9,10,11,12,1,2,3,4,5,6,7,8] as $m) {
@@ -377,56 +417,38 @@ class Payment {
 
                         $ym = sprintf('%04d-%02d', $actualYear, $m);
                         if (!isset($paidYM[$ym])) {
-                            $rest       = $monthlyDue;
-                            $totalRest += $rest;
+                            $totalRest += $monthlyDue;
                             $issues[]   = [
-                                'type'       => 'month_unpaid',
-                                'label'      => $monthNames[$m] . ' ' . $actualYear,
-                                'sport_year' => $sy,
-                                'due'        => $monthlyDue,
-                                'paid'       => 0,
-                                'rest'       => $rest,
+                                'type'  => 'month_unpaid',
+                                'label' => $monthNames[$m] . ' ' . $actualYear,
+                                'due'   => $monthlyDue, 'paid' => 0, 'rest' => $monthlyDue,
                             ];
                         } elseif ($paidYM[$ym] < $monthlyDue - 0.01) {
                             $rest       = $monthlyDue - $paidYM[$ym];
                             $totalRest += $rest;
                             $issues[]   = [
-                                'type'       => 'month_partial',
-                                'label'      => $monthNames[$m] . ' ' . $actualYear,
-                                'sport_year' => $sy,
-                                'due'        => $monthlyDue,
-                                'paid'       => $paidYM[$ym],
-                                'rest'       => $rest,
+                                'type'  => 'month_partial',
+                                'label' => $monthNames[$m] . ' ' . $actualYear,
+                                'due'   => $monthlyDue, 'paid' => $paidYM[$ym], 'rest' => $rest,
                             ];
                         }
                     }
                 }
             }
 
-            // Check assurance and adhesion per calendar year from start to current
             $assurancePrice = (float)($adh['assurance_price'] ?? 0);
             $adhesionPrice  = (float)($adh['adhesion_price']  ?? 0);
 
             for ($y = $startYear; $y <= $currentYear; $y++) {
                 if ($assurancePrice > 0 && !isset($assuranceYears[$y])) {
                     $totalRest += $assurancePrice;
-                    $issues[]   = [
-                        'type'  => 'assurance',
-                        'label' => 'التأمين ' . $y,
-                        'due'   => $assurancePrice,
-                        'paid'  => 0,
-                        'rest'  => $assurancePrice,
-                    ];
+                    $issues[] = ['type'=>'assurance','label'=>'التأمين '.$y,
+                                 'due'=>$assurancePrice,'paid'=>0,'rest'=>$assurancePrice];
                 }
                 if ($adhesionPrice > 0 && !isset($adhesionYears[$y])) {
                     $totalRest += $adhesionPrice;
-                    $issues[]   = [
-                        'type'  => 'adhesion',
-                        'label' => 'الانخراط ' . $y,
-                        'due'   => $adhesionPrice,
-                        'paid'  => 0,
-                        'rest'  => $adhesionPrice,
-                    ];
+                    $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$y,
+                                 'due'=>$adhesionPrice,'paid'=>0,'rest'=>$adhesionPrice];
                 }
             }
 
