@@ -336,7 +336,8 @@ $inTrial         = $totalSessions < 5;
 /* Cell status */
 .cell-overdue { background:#ffe0b2; }
 .cell-partial { background:#fff9c4; }
-.cell-future  { opacity:.4; pointer-events:none; }
+.cell-future  { opacity:.6; }
+/* Exam and special rows: 2 cells each taking 50% */
 .exam-row .flex-cell,
 .special-row .flex-cell { flex: 1 1 50%; }
 
