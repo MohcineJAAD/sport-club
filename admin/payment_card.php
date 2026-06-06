@@ -87,16 +87,8 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
             </h2>
             <p class="mb-5 color-c-60"><?= htmlspecialchars($member['type'] ?? '') ?></p>
             <div class="pc-badges">
-                <?php if ($inTrial): ?>
-                    <span class="badge-trial">⏳ فترة تجريبية (<?= $totalSessions ?>/5 حصص)</span>
-                <?php else: ?>
-                    <span class="badge-active">✓ منخرط (<?= $totalSessions ?> حصة)</span>
-                <?php endif; ?>
-                <?php if ($member['monthly_price'] !== null && $member['monthly_price'] !== ''): ?>
-                    <span class="badge-special">سعر خاص: <?= number_format((float)$member['monthly_price'], 2) ?> DH</span>
-                <?php else: ?>
-                    <span class="badge-plan">الواجب: <?= number_format($monthlyDue, 2) ?> DH</span>
-                <?php endif; ?>
+                <span class="badge-active">حضور هذا الشهر: <?= (int)($attendanceCounts[(int)date('n')] ?? 0) ?> حصص</span>
+                <span class="badge-plan">الواجب: <?= number_format($monthlyDue, 2) ?> DH</span>
             </div>
         </div>
         <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
@@ -360,10 +352,8 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
             padding:2px 7px; font-size:12px; white-space:nowrap; }
 .pc-info-col { flex:1; }
 .pc-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-.badge-trial  { background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:4px; padding:2px 8px; font-size:12px; }
-.badge-active { background:#d4edda; color:#155724; border:1px solid #c3e6cb; border-radius:4px; padding:2px 8px; font-size:12px; }
-.badge-special{ background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; border-radius:4px; padding:2px 8px; font-size:12px; }
-.badge-plan   { background:#f8f9fa; color:#495057; border:1px solid #dee2e6; border-radius:4px; padding:2px 8px; font-size:12px; }
+.badge-active { background:#dbeafe; color:#1e40af; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:600; }
+.badge-plan   { background:#f0fdf4; color:#166534; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:600; }
 
 /* Cell status */
 .cell-overdue { background:#ffe0b2; }

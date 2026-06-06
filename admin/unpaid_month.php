@@ -56,7 +56,7 @@ body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; d
     color: #fff;
 }
 .btn-primary   { background: #203a85; }
-.btn-secondary { background: #666; }
+.btn-secondary { background: #203a8599; }
 .no-print span { color: #ddd; font-size: 14px; }
 
 .doc-sheet {

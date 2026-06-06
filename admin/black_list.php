@@ -33,17 +33,6 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
             </span>
         </div>
         <div class="d-flex gap-10 align-center">
-            <form method="GET" class="d-flex gap-10 align-center">
-                <select name="type" class="p-8 rad-6">
-                    <option value="">كل الرياضات</option>
-                    <?php foreach ($allTypesForFilter as $t => $_): ?>
-                        <option value="<?= htmlspecialchars($t) ?>" <?= $filterType === $t ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($t) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <button type="submit" class="btn-shape">تصفية</button>
-            </form>
             <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
         </div>
     </div>
@@ -155,18 +144,20 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
 </div>
 
 <style>
-.issue-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.issue-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .tag {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
     font-size: 12px;
+    font-weight: 600;
     white-space: nowrap;
+    letter-spacing: 0.2px;
 }
-.tag-red    { background:#ffecec; color:#c00; border:1px solid #f5c6cb; }
-.tag-orange { background:#fff3e0; color:#b36b00; border:1px solid #ffc107; }
-.tag-blue   { background:#e3f2fd; color:#0d47a1; border:1px solid #90caf9; }
-.tag-purple { background:#f3e5f5; color:#6a1b9a; border:1px solid #ce93d8; }
+.tag-red    { background:#fde8e8; color:#b91c1c; }
+.tag-orange { background:#fef3c7; color:#b45309; }
+.tag-blue   { background:#dbeafe; color:#1e40af; }
+.tag-purple { background:#ede9fe; color:#5b21b6; }
 .flex-wrap  { flex-wrap: wrap; }
 .gap-10     { gap: 10px; }
 .align-center { align-items: center; }
