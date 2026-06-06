@@ -60,14 +60,16 @@ class Adherent
     public function create($data, $imagePath, $bcPath)
     {
         $identifier = $this->generateIdentifier();
+        $sex          = ($data['sex']           ?? '') !== '' ? $data['sex']                    : null;
+        $monthlyPrice = isset($data['monthly_price'])        ? (float)$data['monthly_price'] : null;
         $stmt = $this->conn->prepare("
             INSERT INTO adherents
             (identifier, nom, prenom, date_naissance, poids, type, image_path, BC_path,
-             guardian_name, guardian_phone, second_guardian_phone, address, health_status, blood_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            guardian_name, guardian_phone, second_guardian_phone, address, health_status, blood_type, sex, monthly_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->bind_param(
-            "ssssdsssssssss",
+            "ssssdssssssssssd",
             $identifier,
             $data['nom'],
             $data['prenom'],
@@ -81,7 +83,9 @@ class Adherent
             $data['second_guardian_phone'],
             $data['address'],
             $data['health_status'],
-            $data['blood_type']
+            $data['blood_type'],
+            $sex,
+            $monthlyPrice
         );
         $stmt->execute();
         $stmt->close();
@@ -93,13 +97,13 @@ class Adherent
         $sql = "UPDATE adherents SET
             nom=?, prenom=?, date_naissance=?, date_adhesion=?, poids=?,
             guardian_name=?, guardian_phone=?, second_guardian_phone=?, address=?,
-            health_status=?, blood_type=?, current_belt=?, next_belt=?, licence=?, note=?, monthly_price=?";
+            health_status=?, blood_type=?, current_belt=?, next_belt=?, licence=?, note=?, monthly_price=?, sex=?";
 
         $monthlyPrice = (isset($data['monthly_price']) && $data['monthly_price'] !== '')
             ? (float)$data['monthly_price']
             : null;
-
-        $types  = "ssssdssssssssss" . "s";
+        $sex = (isset($data['sex']) && $data['sex'] !== '') ? $data['sex'] : null;
+        $types  = "ssssdssssssssss" . "ss";
         $params = [
             $data['nom'],
             $data['prenom'],
@@ -117,6 +121,7 @@ class Adherent
             $data['licence']                ?? '',
             $data['note']                   ?? '',
             $monthlyPrice,
+            $sex,
         ];
 
         if ($imagePath) {

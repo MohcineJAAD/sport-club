@@ -22,6 +22,7 @@ $data = [
     'health_status'         => trim($_POST['health_status']         ?? ''),
     'blood_type'            => trim($_POST['blood_type']            ?? ''),
     'current_belt'          => trim($_POST['current_belt']          ?? ''),
+    'sex'                   => trim($_POST['sex']                   ?? ''),
 ];
 
 if (empty($data['nom']) || empty($data['prenom']) || empty($data['date_naissance']) || empty($data['type'])) {
@@ -40,6 +41,13 @@ if (!empty($_FILES['imageUpload']['name'])) {
 }
 
 $adherent   = new Adherent($conn);
+
+$planStmt = $conn->prepare("SELECT price FROM plans WHERE name = ? LIMIT 1");
+$planStmt->bind_param("s", $data['type']);
+$planStmt->execute();
+$planRow = $planStmt->get_result()->fetch_assoc();
+$planStmt->close();
+$data['monthly_price'] = $planRow ? (float)$planRow['price'] : null;
 $identifier = $adherent->create($data, $imagePath, '');
 
 $_SESSION['new_member'] = ['identifier' => $identifier];

@@ -29,6 +29,13 @@ $belts_tae  = ["أبيض","أصفر بخط أبيض","أصفر","برتقالي"
 $belts_full = ["أبيض","أصفر","برتقالي","أخضر","أزرق","بني","أسود"];
 $belts      = $type === 'تايكواندو' ? $belts_tae : $belts_full;
 
+$planStmt = $conn->prepare("SELECT price FROM plans WHERE name = ? LIMIT 1");
+$planStmt->bind_param("s", $type);
+$planStmt->execute();
+$planRow = $planStmt->get_result()->fetch_assoc();
+$planStmt->close();
+$planPrice = $planRow ? (float)$planRow['price'] : 0;
+
 $imgSrc = !empty($member['image_path'])
     ? '/sport-club/assets/uploads/' . $member['image_path']
     : '/sport-club/assets/images/defult_image.png';
@@ -165,11 +172,18 @@ $bcPath = !empty($member['BC_path'])
                     <div class="input-field">
                         <label>واجب شهري</label>
                         <input type="number" name="monthly_price" step="0.01" min="0"
-                               placeholder="سعر الخطة"
+                               placeholder="<?= number_format($planPrice, 2) ?>"
                                value="<?= $member['monthly_price'] !== null ? htmlspecialchars($member['monthly_price']) : '' ?>"
                                disabled>
                     </div>
-                    <div class="input-field"></div>
+                    <div class="input-field">
+                        <label>الجنس</label>
+                        <select name="sex" disabled>
+                            <option value="">اختر</option>
+                            <option value="ذكر" <?= ($member['sex'] ?? '') === 'ذكر' ? 'selected' : '' ?>>ذكر</option>
+                            <option value="أنثى" <?= ($member['sex'] ?? '') === 'أنثى' ? 'selected' : '' ?>>أنثى</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Note — full width -->
@@ -204,6 +218,7 @@ $bcPath = !empty($member['BC_path'])
             <div class="action-buttons mt-20">
                 <button type="button" class="btn-shape modify-btn mb-10"><i class="fas fa-edit"></i> تعديل</button>
                 <button type="submit" class="btn-shape save-btn hidden mb-10"><i class="fas fa-save"></i> حفظ</button>
+                <button type="button" class="btn-shape bg-f00 cancel-btn hidden mb-10 color-fff" ><i class="fas fa-times"></i> إلغاء</button>
             </div>
         </form>
     </div>
@@ -272,6 +287,11 @@ document.querySelector('.modify-btn').addEventListener('click', function () {
     ).forEach(el => el.disabled = false);
     this.classList.add('hidden');
     document.querySelector('.save-btn').classList.remove('hidden');
+    document.querySelector('.cancel-btn').classList.remove('hidden');
+});
+
+document.querySelector('.cancel-btn').addEventListener('click', function () {
+    location.reload();
 });
 
 // Re-enable all before submit so disabled fields are included

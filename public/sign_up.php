@@ -76,6 +76,16 @@ $plans = $plan->getNames();
                             <input type="number" name="poids" value="<?= htmlspecialchars($formData['poids'] ?? '') ?>" placeholder="أدخل الوزن" step="0.1" min="0" required>
                         </div>
                         <div class="input-field">
+                            <label>الجنس <span style="color:#f00;">*</span></label>
+                            <select name="sex" required>
+                                <option value="">اختر الجنس</option>
+                                <option value="ذكر" <?= ($formData['sex'] ?? '') === 'ذكر' ? 'selected' : '' ?>>ذكر</option>
+                                <option value="أنثى" <?= ($formData['sex'] ?? '') === 'أنثى' ? 'selected' : '' ?>>أنثى</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="input-field">
                             <label>الرياضة <span style="color:#f00;">*</span></label>
                             <select name="type" id="sport" required>
                                 <option value="">اختر الرياضة</option>

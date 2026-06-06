@@ -32,6 +32,7 @@ $data = [
     'licence'                => trim($_POST['licence']               ?? ''),
     'note'                   => trim($_POST['note']                  ?? ''),
     'monthly_price'          => trim($_POST['monthly_price']         ?? ''),
+    'sex'                    => trim($_POST['sex']                   ?? ''),
     'BC_path'                => '',
 ];
 
