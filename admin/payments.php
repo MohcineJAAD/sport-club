@@ -38,6 +38,9 @@ function formatPaymentDate($date, $months) {
     <div class="section-header">
         <h2>سجل المدفوعات</h2>
         <div class="export-btns">
+            <a href="/sport-club/admin/unpaid_month.php" class="btn-shape color-fff" style="background:#e67e22;">
+                <i class="fas fa-exclamation-circle"></i> غير المدفوعين
+            </a>
             <a href="/sport-club/admin/black_list.php" class="btn-shape color-fff" style="background:#c0392b;">
                 <i class="fas fa-ban"></i> القائمة السوداء
             </a>

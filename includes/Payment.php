@@ -304,7 +304,8 @@ class Payment {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function getUnpaidByMonth($month) {
+    public function getUnpaidByMonth($month)
+    {
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                 a.guardian_name, a.guardian_phone
@@ -318,6 +319,37 @@ class Payment {
             ORDER BY a.nom, a.prenom
         ");
         $stmt->bind_param("s", $month);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    /**
+     * Members who have 5+ attendance sessions in the given month but have NOT paid.
+     * $month = 'YYYY-MM'
+     */
+    public function getUnpaidWithAttendance($month)
+    {
+        [$y, $m] = explode('-', $month);
+        $stmt = $this->conn->prepare("
+            SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
+                   a.guardian_name, a.guardian_phone,
+                   COUNT(att.id) AS session_count
+            FROM adherents a
+            JOIN attendance att ON att.identifier = a.identifier
+                AND YEAR(att.`date`) = ? AND MONTH(att.`date`) = ?
+            WHERE a.status = 'active'
+              AND a.identifier NOT IN (
+                  SELECT p.identifier FROM payments p
+                  WHERE DATE_FORMAT(p.payment_date, '%Y-%m') = ?
+                    AND p.type = 'mois'
+              )
+            GROUP BY a.identifier, a.nom, a.prenom, a.type, a.guardian_name, a.guardian_phone
+            HAVING COUNT(att.id) >= 5
+            ORDER BY a.nom, a.prenom
+        ");
+        $stmt->bind_param("iss", $y, $m, $month);
         $stmt->execute();
         $result = $stmt->get_result();
         $stmt->close();
@@ -378,6 +410,19 @@ class Payment {
         foreach ($allPayments as $p) {
             $paysByAdherent[$p['identifier']][] = $p;
         }
+        
+        // Attendance counts per identifier per YYYY-MM
+        $stmt = $this->conn->prepare(
+            "SELECT identifier, DATE_FORMAT(`date`, '%Y-%m') AS ym, COUNT(*) AS cnt FROM attendance GROUP BY identifier, ym"
+        );
+        $stmt->execute();
+        $attRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        $attByAdherent = [];
+        foreach ($attRows as $row) {
+            $attByAdherent[$row['identifier']][$row['ym']] = (int)$row['cnt'];
+        }
 
         $monthNames = [
             1=>'يناير',2=>'فبراير',3=>'مارس',4=>'أبريل',
@@ -427,14 +472,18 @@ class Payment {
                         $checkDate = new DateTime(sprintf('%04d-%02d-01', $actualYear, $m));
                         if ($checkDate < $startDate) continue;
 
-                        $ym = sprintf('%04d-%02d', $actualYear, $m);
+                        $ym       = sprintf('%04d-%02d', $actualYear, $m);
+                        $sessions = $attByAdherent[$adh['identifier']][$ym] ?? 0;
                         if (!isset($paidYM[$ym])) {
-                            $totalRest += $monthlyDue;
-                            $issues[]   = [
-                                'type'  => 'month_unpaid',
-                                'label' => $monthNames[$m] . ' ' . $actualYear,
-                                'due'   => $monthlyDue, 'paid' => 0, 'rest' => $monthlyDue,
-                            ];
+                            // Only flag as debt if 5+ sessions attended
+                            if ($sessions >= 5) {
+                                $totalRest += $monthlyDue;
+                                $issues[]   = [
+                                    'type'  => 'month_unpaid',
+                                    'label' => $monthNames[$m] . ' ' . $actualYear,
+                                    'due'   => $monthlyDue, 'paid' => 0, 'rest' => $monthlyDue,
+                                ];
+                            }
                         } elseif ($paidYM[$ym] < $monthlyDue - 0.01) {
                             $rest       = $monthlyDue - $paidYM[$ym];
                             $totalRest += $rest;

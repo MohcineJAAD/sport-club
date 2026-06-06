@@ -16,25 +16,6 @@ $nowYear  = (int)date('Y');
 $nowMonth = (int)date('n');
 $defaultSportYear = $nowMonth >= 9 ? $nowYear : $nowYear - 1;
 
-// Filter by sport type
-$filterType = trim($_GET['type'] ?? '');
-if ($filterType !== '') {
-    $blackList = array_filter($blackList, fn($a) => $a['sport_type'] === $filterType);
-}
-
-// Collect all distinct sport types for the filter
-$allTypes = [];
-foreach ($blackList as $a) {
-    $allTypes[$a['sport_type']] = true;
-}
-// Re-fetch for filter dropdown (before type filter)
-$allBlackList = $payment->getBlackListData();
-$allTypesForFilter = [];
-foreach ($allBlackList as $a) {
-    $allTypesForFilter[$a['sport_type']] = true;
-}
-ksort($allTypesForFilter);
-
 $grandTotal = array_sum(array_column($blackList, 'total_rest'));
 ?>
 <?php require 'layout/header.php'; ?>
@@ -80,8 +61,8 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
             <table class="fs-15 w-full" id="blTable">
                 <thead>
                     <tr>
-                        <th>الاسم الكامل</th>
                         <th>المعرف</th>
+                        <th>الاسم الكامل</th>
                         <th>الرياضة</th>
                         <th>الواجب الشهري</th>
                         <th>الأشهر غير المدفوعة</th>
@@ -100,8 +81,8 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
                         $adhIssues     = array_filter($adh['issues'], fn($i) => $i['type'] === 'adhesion');
                     ?>
                         <tr>
-                            <td><?= htmlspecialchars($adh['prenom'] . ' ' . $adh['nom']) ?></td>
                             <td><?= htmlspecialchars($adh['identifier']) ?></td>
+                            <td><?= htmlspecialchars($adh['prenom'] . ' ' . $adh['nom']) ?></td>
                             <td><?= htmlspecialchars($adh['sport_type']) ?></td>
                             <td><?= number_format($adh['monthly_due'], 2) ?> DH</td>
 
