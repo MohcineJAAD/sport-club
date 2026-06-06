@@ -3,12 +3,25 @@ require_once '../vendor/autoload.php';
 require_once '../config/database.php';
 Auth::check();
 
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+
 $identifier = trim($_GET['id'] ?? '');
 
 $nowYear  = (int)date('Y');
 $nowMonth = (int)date('n');
 $defaultSportYear = $nowMonth >= 9 ? $nowYear : $nowYear - 1;
-$year = (int)($_GET['year'] ?? $defaultSportYear);
+$defaultSeason    = $defaultSportYear . '-' . ($defaultSportYear + 1);
+
+// Accept season=YYYY-YYYY (preferred) or legacy year=YYYY
+if (isset($_GET['season'])) {
+    $_SESSION['payment_card_season'] = $_GET['season'];
+} elseif (isset($_GET['year'])) {
+    $y = (int)$_GET['year'];
+    $_SESSION['payment_card_season'] = $y . '-' . ($y + 1);
+}
+$season = $_SESSION['payment_card_season'] ?? $defaultSeason;
+$year   = (int)explode('-', $season)[0]; // sport year start (e.g. 2025 from "2025-2026")
 
 if (empty($identifier)) {
     header("Location: /sport-club/admin/payments.php");
@@ -89,10 +102,11 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
         <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
     </div>
 
-    <!-- Year selector -->
+    <!-- Season selector -->
     <select id="yearSelect" class="mb-20 p-10">
-        <?php foreach ($years as $y): ?>
-            <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>>
+        <?php foreach ($years as $y):
+            $s = $y . '-' . ($y + 1); ?>
+            <option value="<?= $s ?>" <?= $s === $season ? 'selected' : '' ?>>
                 <?= $y ?>–<?= $y + 1 ?>
             </option>
         <?php endforeach; ?>
@@ -101,7 +115,7 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
 
     <form method="POST" action="/sport-club/actions/payment_card_save.php" id="cardForm">
         <input type="hidden" name="identifier" value="<?= htmlspecialchars($identifier) ?>">
-        <input type="hidden" name="year" value="<?= $year ?>">
+        <input type="hidden" name="season" value="<?= htmlspecialchars($season) ?>">
 
         <!-- ─── Monthly cells ─── -->
         <div class="flex-table">
@@ -267,7 +281,7 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
                 <!-- Jan exam -->
                 <div class="<?= $janCls ?>" data-due="<?= $janCellDue ?>">
                     <div class="cv">
-                        <h4 class="mb-4">🥋 فحص يناير</h4>
+                        <h4 class="mb-4">🥋 امتحان يناير</h4>
                         <?php if ($janAmt > 0 && !$janPartial): ?>
                             <span class="amt-green">✓ <?= number_format($janAmt, 2) ?> DH</span>
                         <?php elseif ($janPartial): ?>
@@ -277,7 +291,7 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
                         <?php endif; ?>
                     </div>
                     <div class="ce hidden">
-                        <h4 class="mb-4">🥋 فحص يناير</h4>
+                        <h4 class="mb-4">🥋 امتحان يناير</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
                             <input type="number" name="exam_jan_due" class="inp-price"
@@ -292,14 +306,13 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-rest"></div>
-                        <small class="color-aaa">اتركه 0 إن لم يشارك</small>
                     </div>
                 </div>
 
                 <!-- Jun exam -->
                 <div class="<?= $junCls ?>" data-due="<?= $junCellDue ?>">
                     <div class="cv">
-                        <h4 class="mb-4">🥋 فحص يونيو</h4>
+                        <h4 class="mb-4">🥋 امتحان يونيو</h4>
                         <?php if ($junAmt > 0 && !$junPartial): ?>
                             <span class="amt-green">✓ <?= number_format($junAmt, 2) ?> DH</span>
                         <?php elseif ($junPartial): ?>
@@ -309,7 +322,7 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
                         <?php endif; ?>
                     </div>
                     <div class="ce hidden">
-                        <h4 class="mb-4">🥋 فحص يونيو</h4>
+                        <h4 class="mb-4">🥋 امتحان يونيو</h4>
                         <div class="ce-row">
                             <label>المستحق</label>
                             <input type="number" name="exam_jun_due" class="inp-price"
@@ -324,7 +337,6 @@ $inTrial         = $totalSessions < 5 && $yearSessions < 5;
                             <span class="dh">DH</span>
                         </div>
                         <div class="ce-rest"></div>
-                        <small class="color-aaa">اتركه 0 إن لم يشارك</small>
                     </div>
                 </div>
             </div>
@@ -424,7 +436,7 @@ document.querySelectorAll('.flex-cell').forEach(cell => {
 });
 
 document.getElementById('yearSelect').addEventListener('change', function () {
-    window.location.href = `?id=<?= urlencode($identifier) ?>&year=${this.value}`;
+    window.location.href = `?id=<?= urlencode($identifier) ?>&season=${this.value}`;
 });
 </script>
 

@@ -9,7 +9,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $identifier = trim($_POST['identifier'] ?? '');
-$year       = (int)($_POST['year']       ?? date('Y'));
+
+// Accept season=YYYY-YYYY (new) or year=YYYY (legacy)
+$season = trim($_POST['season'] ?? '');
+if (!$season && !empty($_POST['year'])) {
+    $y      = (int)$_POST['year'];
+    $season = $y . '-' . ($y + 1);
+}
+$year = $season ? (int)explode('-', $season)[0] : (int)date('Y');
+if (!$season) $season = $year . '-' . ($year + 1);
 
 if (empty($identifier)) {
     $_SESSION['message'] = 'معرف المشترك غير صالح';
@@ -55,5 +63,5 @@ $payment->saveCard(
 
 $_SESSION['message'] = 'تم حفظ المدفوعات بنجاح';
 $_SESSION['status']  = 'success';
-header("Location: /sport-club/admin/payment_card.php?id=" . urlencode($identifier) . "&year={$year}");
+header("Location: /sport-club/admin/payment_card.php?id=" . urlencode($identifier) . "&season={$season}");
 exit();

@@ -3,6 +3,10 @@ require_once '../vendor/autoload.php';
 require_once '../config/database.php';
 Auth::check();
 
+$_nm = (int)date('n');
+$_ny = (int)date('Y');
+$currentSeason = ($_nm >= 9 ? $_ny : $_ny - 1) . '-' . ($_nm >= 9 ? $_ny + 1 : $_ny);
+
 $payment  = new Payment($conn);
 $adherent = new Adherent($conn);
 $plan     = new Plan($conn);
@@ -127,7 +131,7 @@ function formatPaymentDate($date, $months) {
                                             <td><?= htmlspecialchars($m['identifier']) ?></td>
                                             <td><?= htmlspecialchars($m['date_adhesion'] ?? '') ?></td>
                                             <td>
-                                                <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($m['identifier']) ?>&year=<?= date('Y') ?>"
+                                                <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($m['identifier']) ?>&season=<?= $currentSeason ?>"
                                                    class="btn-shape bg-c-60 color-fff">دفع</a>
                                             </td>
                                         </tr>

@@ -249,11 +249,15 @@ class Payment {
         $ins = $this->conn->prepare(
             "INSERT INTO payments (identifier, amount, due_amount, type, payment_date) VALUES (?, ?, ?, ?, ?)"
         );
+        if (!$ins) {
+            error_log("Payment saveCard prepare failed: " . $this->conn->error);
+            return;
+        }
 
         foreach ($monthAmounts as $month => $amount) {
             $month = (int)$month;
             if ($amount <= 0) continue;
-            $due        = $monthDueAmounts[$month] > 0 ? $monthDueAmounts[$month] : null;
+            $due        = (float)($monthDueAmounts[$month] ?? 0);
             $actualYear = $month >= 9 ? $sportYear : $nextYear;
             $date       = sprintf('%04d-%02d-01', $actualYear, $month);
             $type       = 'mois';
@@ -263,22 +267,22 @@ class Payment {
 
         if ($assuranceAmount > 0) {
             $date = sprintf('%04d-09-01', $sportYear); $type = 'assurance';
-            $due  = $assuranceDue > 0 ? $assuranceDue : null;
+            $due  = (float)$assuranceDue;
             $ins->bind_param("sddss", $identifier, $assuranceAmount, $due, $type, $date); $ins->execute();
         }
         if ($adhesionAmount > 0) {
             $date = sprintf('%04d-09-01', $sportYear); $type = 'adhesion';
-            $due  = $adhesionDue > 0 ? $adhesionDue : null;
+            $due  = (float)$adhesionDue;
             $ins->bind_param("sddss", $identifier, $adhesionAmount, $due, $type, $date); $ins->execute();
         }
         if ($examJanAmount > 0) {
             $date = sprintf('%04d-01-01', $nextYear); $type = 'exam';
-            $due  = $examJanDue > 0 ? $examJanDue : null;
+            $due  = (float)$examJanDue;
             $ins->bind_param("sddss", $identifier, $examJanAmount, $due, $type, $date); $ins->execute();
         }
         if ($examJunAmount > 0) {
             $date = sprintf('%04d-06-01', $nextYear); $type = 'exam';
-            $due  = $examJunDue > 0 ? $examJunDue : null;
+            $due  = (float)$examJunDue;
             $ins->bind_param("sddss", $identifier, $examJunAmount, $due, $type, $date); $ins->execute();
         }
 

@@ -163,10 +163,7 @@ $bcPath = !empty($member['BC_path'])
 
                 <div class="row">
                     <div class="input-field">
-                        <label>
-                            واجب شهري خاص
-                            <small class="color-aaa fs-12"> (اتركه فارغاً لاستخدام سعر الخطة)</small>
-                        </label>
+                        <label>واجب شهري</label>
                         <input type="number" name="monthly_price" step="0.01" min="0"
                                placeholder="سعر الخطة"
                                value="<?= $member['monthly_price'] !== null ? htmlspecialchars($member['monthly_price']) : '' ?>"
