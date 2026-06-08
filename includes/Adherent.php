@@ -156,8 +156,9 @@ class Adherent
 
     private function generateIdentifier()
     {
-        $result = $this->conn->query("SELECT MAX(CAST(identifier AS UNSIGNED)) AS max_id FROM adherents");
+        $result = $this->conn->query("SELECT MAX(CAST(SUBSTRING(identifier, 2) AS UNSIGNED)) AS max_id FROM adherents WHERE identifier REGEXP '^A[0-9]+$'");
         $row    = $result->fetch_assoc();
-        return (string)(($row['max_id'] ?? 0) + 1);
+        $next   = ($row['max_id'] ?? 0) + 1;
+        return 'A' . str_pad($next, 9, '0', STR_PAD_LEFT);
     }
 }

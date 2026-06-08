@@ -25,7 +25,7 @@ $trophies = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 $type       = $member['type'] ?? '';
-$belts_tae  = ["أبيض","أصفر بخط أبيض","أصفر","برتقالي","أخضر","أزرق","أزرق بخط أحمر","أحمر","أحمر بخط أسود","أحمر بخطين أسودين"];
+$belts_tae  = ["أبيض","  أبيض بخط أصفر","أصفر","برتقالي","أخضر","أزرق","أزرق بخط أحمر","أحمر","أحمر بخط أسود","أحمر بخطين أسودين","أسود"];
 $belts_full = ["أبيض","أصفر","برتقالي","أخضر","أزرق","بني","أسود"];
 $belts      = $type === 'تايكواندو' ? $belts_tae : $belts_full;
 
@@ -107,7 +107,7 @@ $bcPath = !empty($member['BC_path'])
                 <div class="row">
                     <div class="input-field">
                         <label>الحزام الحالي</label>
-                        <select name="current_belt" disabled>
+                        <select name="current_belt" id="currentBelt" disabled>
                             <option value="">اختر</option>
                             <?php foreach ($belts as $b): ?>
                                 <option value="<?= $b ?>" <?= ($member['current_belt'] ?? '') === $b ? 'selected' : '' ?>><?= $b ?></option>
@@ -116,7 +116,7 @@ $bcPath = !empty($member['BC_path'])
                     </div>
                     <div class="input-field">
                         <label>الحزام التالي</label>
-                        <select name="next_belt" disabled>
+                        <select name="next_belt" id="nextBelt" disabled>
                             <option value="">اختر</option>
                             <?php foreach ($belts as $b): ?>
                                 <option value="<?= $b ?>" <?= ($member['next_belt'] ?? '') === $b ? 'selected' : '' ?>><?= $b ?></option>
@@ -267,6 +267,43 @@ $bcPath = !empty($member['BC_path'])
 </div>
 
 <script>
+// Belt list (same order as PHP)
+const belts = <?= json_encode($belts) ?>;
+
+// Auto-set next belt when current belt changes
+document.getElementById('currentBelt').addEventListener('change', function () {
+    const idx = belts.indexOf(this.value);
+    const nextSel = document.getElementById('nextBelt');
+    if (idx >= 0 && idx + 1 < belts.length) {
+        nextSel.value = belts[idx + 1];
+    } else {
+        nextSel.value = this.value; // last belt stays same
+    }
+});
+
+// Date of birth validation on form submit
+document.querySelector('form').addEventListener('submit', function (e) {
+    const dobInput = document.querySelector('input[name="date_naissance"]');
+    if (dobInput && dobInput.value) {
+        const dob = new Date(dobInput.value);
+        const now = new Date();
+        const minDate = new Date();
+        minDate.setFullYear(now.getFullYear() - 100);
+        if (dob >= now) {
+            e.preventDefault();
+            alert('تاريخ الازدياد يجب أن يكون في الماضي.');
+            dobInput.focus();
+            return;
+        }
+        if (dob < minDate) {
+            e.preventDefault();
+            alert('تاريخ الازدياد غير صالح (أكثر من 100 سنة).');
+            dobInput.focus();
+            return;
+        }
+    }
+}, true); // capture phase so it runs before the re-enable handler
+
 document.getElementById('imageUpload').addEventListener('change', function () {
     const file = this.files[0];
     if (file) {

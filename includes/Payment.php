@@ -425,7 +425,7 @@ class Payment {
             $attByAdherent[$row['identifier']][$row['ym']] = (int)$row['cnt'];
         }
 
-         // Events (exams/tournaments) with remaining balance
+        // Tournaments with remaining balance (exams tracked in payments table)
         $stmt = $this->conn->prepare("
             SELECT * FROM member_events WHERE type='tournament' AND paid_amount < due_amount - 0.001
         ");
@@ -436,7 +436,6 @@ class Payment {
         foreach ($eventRows as $ev) {
             $eventsByAdherent[$ev['identifier']][] = $ev;
         }
-
 
         $monthNames = [
             1=>'يناير',2=>'فبراير',3=>'مارس',4=>'أبريل',
@@ -525,31 +524,45 @@ class Payment {
             $assurancePrice = (float)($adh['assurance_price'] ?? 0);
             $adhesionPrice  = (float)($adh['adhesion_price']  ?? 0);
 
-            for ($y = $startYear; $y <= $currentYear; $y++) {
+            for ($sy = $firstSportYear; $sy <= $currentSportYear; $sy++) {
+                $seasonLabel = $sy . '-' . ($sy + 1);
+
+                // Only check seasons where the member was actually active
+                // (had attendance or a monthly payment in that sport year)
+                $syActive = false;
+                foreach ([9,10,11,12,1,2,3,4,5,6,7,8] as $m) {
+                    $ay = $m >= 9 ? $sy : $sy + 1;
+                    $ym = sprintf('%04d-%02d', $ay, $m);
+                    if (($attByAdherent[$adh['identifier']][$ym] ?? 0) > 0 || isset($paidYM[$ym])) {
+                        $syActive = true;
+                        break;
+                    }
+                }
+                if (!$syActive) continue;
+
                 if ($assurancePrice > 0) {
-                    $assPaid = $assuranceYears[$y] ?? 0;
+                    $assPaid = $assuranceYears[$sy] ?? 0;
                     if ($assPaid <= 0) {
                         $totalRest += $assurancePrice;
-                        $issues[] = ['type'=>'assurance','label'=>'التأمين '.$y,
+                        $issues[] = ['type'=>'assurance','label'=>'التأمين '.$seasonLabel,
                                      'due'=>$assurancePrice,'paid'=>0,'rest'=>$assurancePrice];
                     } elseif ($assPaid < $assurancePrice - 0.01) {
                         $rest = $assurancePrice - $assPaid;
                         $totalRest += $rest;
-                        $issues[] = ['type'=>'assurance','label'=>'التأمين '.$y,
+                        $issues[] = ['type'=>'assurance','label'=>'التأمين '.$seasonLabel,
                                      'due'=>$assurancePrice,'paid'=>$assPaid,'rest'=>$rest];
                     }
                 }
-                if ($adhesionPrice > 0)
-                {
-                    $adhPaid = $adhesionYears[$y] ?? 0;
+                if ($adhesionPrice > 0) {
+                    $adhPaid = $adhesionYears[$sy] ?? 0;
                     if ($adhPaid <= 0) {
                         $totalRest += $adhesionPrice;
-                        $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$y,
+                        $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$seasonLabel,
                                      'due'=>$adhesionPrice,'paid'=>0,'rest'=>$adhesionPrice];
                     } elseif ($adhPaid < $adhesionPrice - 0.01) {
                         $rest = $adhesionPrice - $adhPaid;
                         $totalRest += $rest;
-                        $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$y,
+                        $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$seasonLabel,
                                      'due'=>$adhesionPrice,'paid'=>$adhPaid,'rest'=>$rest];
                     }
                 }

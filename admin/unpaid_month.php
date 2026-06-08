@@ -31,6 +31,10 @@ $grandTotal = array_sum(array_column($list, 'total_rest'));
             </span>
         </div>
         <div class="d-flex gap-10 align-center">
+            <?php if (!empty($list)): ?>
+            <a href="/sport-club/admin/print_unpaid_month.php" target="_blank" class="btn-shape" style="background:#16a34a;color:#fff;">
+                <i class="fa-solid fa-print"></i> طبع
+            <?php endif; ?>
             <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
         </div>
     </div>
@@ -114,6 +118,7 @@ $grandTotal = array_sum(array_column($list, 'total_rest'));
 
                             <td>
                                 <?php if (!empty($assIssues)): ?>
+                                    <div class="issue-tags">
                                     <?php foreach ($assIssues as $i): ?>
                                         <span class="tag <?= $i['paid'] > 0 ? 'tag-orange' : 'tag-red' ?>"
                                               <?= $i['paid'] > 0 ? 'title="دفع ' . number_format($i['paid'],2) . ' / ' . number_format($i['due'],2) . ' DH"' : '' ?>>
@@ -121,6 +126,7 @@ $grandTotal = array_sum(array_column($list, 'total_rest'));
                                             <small>(<?= number_format($i['paid'] > 0 ? $i['rest'] : $i['due'], 2) ?>)</small>
                                         </span>
                                     <?php endforeach; ?>
+                                    </div>
                                 <?php else: ?>
                                     <span class="color-aaa">—</span>
                                 <?php endif; ?>
@@ -128,6 +134,7 @@ $grandTotal = array_sum(array_column($list, 'total_rest'));
 
                             <td>
                                 <?php if (!empty($adhIssues)): ?>
+                                    <div class="issue-tags">
                                     <?php foreach ($adhIssues as $i): ?>
                                         <span class="tag <?= $i['paid'] > 0 ? 'tag-orange' : 'tag-red' ?>"
                                               <?= $i['paid'] > 0 ? 'title="دفع ' . number_format($i['paid'],2) . ' / ' . number_format($i['due'],2) . ' DH"' : '' ?>>
@@ -135,6 +142,7 @@ $grandTotal = array_sum(array_column($list, 'total_rest'));
                                             <small>(<?= number_format($i['paid'] > 0 ? $i['rest'] : $i['due'], 2) ?>)</small>
                                         </span>
                                     <?php endforeach; ?>
+                                    </div>
                                 <?php else: ?>
                                     <span class="color-aaa">—</span>
                                 <?php endif; ?>
@@ -311,10 +319,19 @@ $grandTotal = array_sum(array_column($list, 'total_rest'));
 </style>
 
 <script>
+function rowMatchesQuery(row, q) {
+    if (!q) return true;
+    const cells = row.querySelectorAll('td');
+    const name = (cells[0]?.textContent || '').toLowerCase();
+    const rawId = (cells[1]?.textContent || '').trim();
+    const idStripped = rawId.replace(/^A0*/i, '');
+    return name.includes(q) || idStripped === q || rawId.toLowerCase().includes(q);
+}
+
 document.getElementById('blSearch').addEventListener('input', function () {
     const q = this.value.trim().toLowerCase();
     document.querySelectorAll('#blTable tbody tr.main-row').forEach(row => {
-        const visible = row.textContent.toLowerCase().includes(q);
+        const visible = rowMatchesQuery(row, q);
         row.style.display = visible ? '' : 'none';
         const detailId = row.dataset.detail;
         const detailRow = document.getElementById(detailId);

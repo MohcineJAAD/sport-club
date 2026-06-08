@@ -17,7 +17,7 @@ $stmt->close();
 <div class="absences p-20 bg-fff rad-10 m-20">
     <h2 class="mt-0 mb-20 mt-20">المنخرطين</h2>
     <form class="responsive-table" method="post" action="/sport-club/admin/export_exam.php">
-        <div class="row mb-10">
+        <div class="row mb-10" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
             <div class="branch-filter">
                 <div class="mb-10">
                     <label for="session">الدورة</label>
@@ -27,6 +27,11 @@ $stmt->close();
                         <option value="يونيو">يونيو</option>
                     </select>
                 </div>
+            </div>
+            <div class="mb-10">
+                <button type="button" onclick="submitExam()" class="save-btn btn-shape">
+                    <i class="fa-solid fa-print"></i> طبع
+                </button>
             </div>
         </div>
 
@@ -64,9 +69,6 @@ $stmt->close();
             </tbody>
         </table>
 
-        <button type="button" onclick="submitExam()" class="save-btn btn-shape mt-10">
-            <i class="fa-solid fa-print"></i> طبع
-        </button>
     </form>
 </div>
 
@@ -78,9 +80,7 @@ document.getElementById('select-all').onclick = function () {
 document.getElementById('exam-search').addEventListener('input', function () {
     const q = this.value.toLowerCase();
     document.querySelectorAll('#adherent-list tbody tr').forEach(row => {
-        const name = row.cells[1]?.textContent.toLowerCase() ?? '';
-        const id   = row.cells[2]?.textContent.toLowerCase() ?? '';
-        row.style.display = (name.includes(q) || id.includes(q)) ? '' : 'none';
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
 });
 
