@@ -9,11 +9,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $identifier = trim($_POST['identifier'] ?? '');
-
-// Accept season=YYYY-YYYY (new) or year=YYYY (legacy)
 $season = trim($_POST['season'] ?? '');
 if (!$season && !empty($_POST['year'])) {
-    $y      = (int)$_POST['year'];
+    $y = (int)$_POST['year'];
     $season = $y . '-' . ($y + 1);
 }
 $year = $season ? (int)explode('-', $season)[0] : (int)date('Y');
@@ -26,11 +24,11 @@ if (empty($identifier)) {
     exit();
 }
 
+// Monthly
 $monthAmounts = [];
 foreach ($_POST['amounts'] ?? [] as $m => $amt) {
     $monthAmounts[(int)$m] = (float)$amt;
 }
-
 $monthDueAmounts = [];
 foreach ($_POST['due_amounts'] ?? [] as $m => $amt) {
     $monthDueAmounts[(int)$m] = (float)$amt;
@@ -47,19 +45,30 @@ $examJunDue      = (float)($_POST['exam_jun_due']     ?? 0);
 
 $payment = new Payment($conn);
 $payment->saveCard(
-    $identifier,
-    $year,
-    $monthAmounts,
-    $monthDueAmounts,
-    $assuranceAmount,
-    $assuranceDue,
-    $adhesionAmount,
-    $adhesionDue,
-    $examJanAmount,
-    $examJanDue,
-    $examJunAmount,
-    $examJunDue
+    $identifier, $year,
+    $monthAmounts, $monthDueAmounts,
+    $assuranceAmount, $assuranceDue,
+    $adhesionAmount,  $adhesionDue,
+    $examJanAmount,   $examJanDue,
+    $examJunAmount,   $examJunDue
 );
+
+// Tournaments (member_events)
+$eventModel = new MemberEvent($conn);
+$toSave = [];
+foreach ($_POST['tournaments'] ?? [] as $key => $t) {
+    $label = trim($t['label'] ?? '');
+    if ($label === '') continue;
+    $toSave[] = [
+        'id'   => is_numeric($key) ? (int)$key : 0,
+        'type' => 'tournament',
+        'label'=> $label,
+        'due'  => (float)($t['due']  ?? 0),
+        'paid' => (float)($t['paid'] ?? 0),
+        'date' => null,
+    ];
+}
+$eventModel->saveAll($identifier, $season, $toSave);
 
 $_SESSION['message'] = 'تم حفظ المدفوعات بنجاح';
 $_SESSION['status']  = 'success';

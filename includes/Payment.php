@@ -275,12 +275,12 @@ class Payment {
             $due  = (float)$adhesionDue;
             $ins->bind_param("sddss", $identifier, $adhesionAmount, $due, $type, $date); $ins->execute();
         }
-        if ($examJanAmount > 0) {
+        if ($examJanDue > 0) {
             $date = sprintf('%04d-01-01', $nextYear); $type = 'exam';
             $due  = (float)$examJanDue;
             $ins->bind_param("sddss", $identifier, $examJanAmount, $due, $type, $date); $ins->execute();
         }
-        if ($examJunAmount > 0) {
+        if ($examJunDue > 0) {
             $date = sprintf('%04d-06-01', $nextYear); $type = 'exam';
             $due  = (float)$examJunDue;
             $ins->bind_param("sddss", $identifier, $examJunAmount, $due, $type, $date); $ins->execute();
@@ -401,7 +401,7 @@ class Payment {
         $stmt->close();
 
         $stmt = $this->conn->prepare(
-            "SELECT identifier, type, amount, payment_date FROM payments WHERE type != 'exam'"
+            "SELECT identifier, type, amount, due_amount, payment_date FROM payments"
         );
         $stmt->execute();
         $allPayments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -425,6 +425,19 @@ class Payment {
             $attByAdherent[$row['identifier']][$row['ym']] = (int)$row['cnt'];
         }
 
+         // Events (exams/tournaments) with remaining balance
+        $stmt = $this->conn->prepare("
+            SELECT * FROM member_events WHERE type='tournament' AND paid_amount < due_amount - 0.001
+        ");
+        $stmt->execute();
+        $eventRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+        $eventsByAdherent = [];
+        foreach ($eventRows as $ev) {
+            $eventsByAdherent[$ev['identifier']][] = $ev;
+        }
+
+
         $monthNames = [
             1=>'يناير',2=>'فبراير',3=>'مارس',4=>'أبريل',
             5=>'مايو',6=>'يونيو',7=>'يوليو',8=>'غشت',
@@ -440,18 +453,28 @@ class Payment {
 
             $payments = $paysByAdherent[$adh['identifier']] ?? [];
             $paidYM         = [];
-            $assuranceYears = [];
-            $adhesionYears  = [];
+            $assuranceYears = []; // [year => amount_paid]
+            $adhesionYears  = []; // [year => amount_paid]
+            $examRecords    = []; // list of ['paid'=>float,'due'=>float,'label'=>string]
 
             foreach ($payments as $p) {
-                $y = (int)substr($p['payment_date'], 0, 4);
+                $y   = (int)substr($p['payment_date'], 0, 4);
+                $amt = (float)$p['amount'];
+                $due = (float)($p['due_amount'] ?? 0);
                 if ($p['type'] === 'assurance') {
-                    $assuranceYears[$y] = true;
+                    $assuranceYears[$y] = ($assuranceYears[$y] ?? 0) + $amt;
                 } elseif ($p['type'] === 'adhesion') {
-                    $adhesionYears[$y] = true;
+                    $adhesionYears[$y] = ($adhesionYears[$y] ?? 0) + $amt;
+                } elseif ($p['type'] === 'exam') {
+                    $m = (int)date('n', strtotime($p['payment_date']));
+                    $examRecords[] = [
+                        'paid'  => $amt,
+                        'due'   => $due,
+                        'label' => ($m === 1 ? 'امتحان يناير' : 'امتحان يونيو') . ' ' . $y,
+                    ];
                 } else {
                     $ym = substr($p['payment_date'], 0, 7);
-                    $paidYM[$ym] = (float)$p['amount'];
+                    $paidYM[$ym] = $amt;
                 }
             }
 
@@ -503,15 +526,62 @@ class Payment {
             $adhesionPrice  = (float)($adh['adhesion_price']  ?? 0);
 
             for ($y = $startYear; $y <= $currentYear; $y++) {
-                if ($assurancePrice > 0 && !isset($assuranceYears[$y])) {
-                    $totalRest += $assurancePrice;
-                    $issues[] = ['type'=>'assurance','label'=>'التأمين '.$y,
-                                 'due'=>$assurancePrice,'paid'=>0,'rest'=>$assurancePrice];
+                if ($assurancePrice > 0) {
+                    $assPaid = $assuranceYears[$y] ?? 0;
+                    if ($assPaid <= 0) {
+                        $totalRest += $assurancePrice;
+                        $issues[] = ['type'=>'assurance','label'=>'التأمين '.$y,
+                                     'due'=>$assurancePrice,'paid'=>0,'rest'=>$assurancePrice];
+                    } elseif ($assPaid < $assurancePrice - 0.01) {
+                        $rest = $assurancePrice - $assPaid;
+                        $totalRest += $rest;
+                        $issues[] = ['type'=>'assurance','label'=>'التأمين '.$y,
+                                     'due'=>$assurancePrice,'paid'=>$assPaid,'rest'=>$rest];
+                    }
                 }
-                if ($adhesionPrice > 0 && !isset($adhesionYears[$y])) {
-                    $totalRest += $adhesionPrice;
-                    $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$y,
-                                 'due'=>$adhesionPrice,'paid'=>0,'rest'=>$adhesionPrice];
+                if ($adhesionPrice > 0)
+                {
+                    $adhPaid = $adhesionYears[$y] ?? 0;
+                    if ($adhPaid <= 0) {
+                        $totalRest += $adhesionPrice;
+                        $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$y,
+                                     'due'=>$adhesionPrice,'paid'=>0,'rest'=>$adhesionPrice];
+                    } elseif ($adhPaid < $adhesionPrice - 0.01) {
+                        $rest = $adhesionPrice - $adhPaid;
+                        $totalRest += $rest;
+                        $issues[] = ['type'=>'adhesion','label'=>'الانخراط '.$y,
+                                     'due'=>$adhesionPrice,'paid'=>$adhPaid,'rest'=>$rest];
+                    }
+                }
+            }
+
+            // Exam debt
+            foreach ($examRecords as $ex) {
+                if ($ex['due'] > 0 && $ex['paid'] < $ex['due'] - 0.01) {
+                    $rest = $ex['due'] - $ex['paid'];
+                    $totalRest += $rest;
+                    $issues[] = [
+                        'type'  => 'exam',
+                        'label' => $ex['label'],
+                        'due'   => $ex['due'],
+                        'paid'  => $ex['paid'],
+                        'rest'  => $rest,
+                    ];
+                }
+            }
+
+            // Events debt (tournaments)
+            foreach ($eventsByAdherent[$adh['identifier']] ?? [] as $ev) {
+                $rest = (float)$ev['due_amount'] - (float)$ev['paid_amount'];
+                if ($rest > 0.01) {
+                    $totalRest += $rest;
+                    $issues[] = [
+                        'type'  => $ev['type'],
+                        'label' => $ev['label'],
+                        'due'   => (float)$ev['due_amount'],
+                        'paid'  => (float)$ev['paid_amount'],
+                        'rest'  => $rest,
+                    ];
                 }
             }
 
@@ -527,10 +597,6 @@ class Payment {
         return $blackList;
     }
 
-    /**
-     * Current month: active members with 5+ sessions who haven't paid.
-     * Same structure as getBlackListData() rows but only this month's debt.
-     */
     /**
      * All debt (same as black list) but only for members who attended 5+ sessions this month.
      */

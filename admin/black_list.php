@@ -15,6 +15,7 @@ $monthNames = [
 $nowYear  = (int)date('Y');
 $nowMonth = (int)date('n');
 $defaultSportYear = $nowMonth >= 9 ? $nowYear : $nowYear - 1;
+$currentSeason = $defaultSportYear . '-' . ($defaultSportYear + 1);
 
 $grandTotal = array_sum(array_column($blackList, 'total_rest'));
 ?>
@@ -41,6 +42,12 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
         <p class="txt-c color-aaa p-20">لا يوجد متأخرون 🎉</p>
     <?php else: ?>
 
+        <!-- Legend -->
+        <div class="tag-legend mb-15">
+            <span class="legend-item"><span class="tag tag-red">غير مدفوع</span></span>
+            <span class="legend-item"><span class="tag tag-orange">ناقص (المبلغ المتبقي)</span></span>
+        </div>
+
         <!-- Search -->
         <input type="text" id="blSearch" class="mb-15 p-10 w-full rad-6"
                style="border:1px solid #ddd;box-sizing:border-box"
@@ -50,14 +57,15 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
             <table class="fs-15 w-full" id="blTable">
                 <thead>
                     <tr>
-                        <th>المعرف</th>
                         <th>الاسم الكامل</th>
+                        <th>المعرف</th>
                         <th>الرياضة</th>
                         <th>الواجب الشهري</th>
                         <th>الأشهر غير المدفوعة</th>
                         <th>الأشهر الناقصة</th>
                         <th>التأمين</th>
                         <th>الانخراط</th>
+                        <th>الامتحانات / البطولات</th>
                         <th>المجموع المستحق</th>
                         <th>بطاقة الدفع</th>
                     </tr>
@@ -68,10 +76,11 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
                         $partialMonths = array_filter($adh['issues'], fn($i) => $i['type'] === 'month_partial');
                         $assIssues     = array_filter($adh['issues'], fn($i) => $i['type'] === 'assurance');
                         $adhIssues     = array_filter($adh['issues'], fn($i) => $i['type'] === 'adhesion');
+                        $eventIssues   = array_filter($adh['issues'], fn($i) => in_array($i['type'], ['exam','tournament']));
                     ?>
                         <tr>
-                            <td><?= htmlspecialchars($adh['identifier']) ?></td>
                             <td><?= htmlspecialchars($adh['prenom'] . ' ' . $adh['nom']) ?></td>
+                            <td><?= htmlspecialchars($adh['identifier']) ?></td>
                             <td><?= htmlspecialchars($adh['sport_type']) ?></td>
                             <td><?= number_format($adh['monthly_due'], 2) ?> DH</td>
 
@@ -80,7 +89,10 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
                                 <?php if (!empty($unpaidMonths)): ?>
                                     <div class="issue-tags">
                                         <?php foreach ($unpaidMonths as $i): ?>
-                                            <span class="tag tag-red"><?= htmlspecialchars($i['label']) ?></span>
+                                            <span class="tag tag-red">
+                                                <?= htmlspecialchars($i['label']) ?>
+                                                <small>(<?= number_format($i['due'],2) ?>)</small>
+                                            </span>
                                         <?php endforeach; ?>
                                     </div>
                                 <?php else: ?>
@@ -108,7 +120,11 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
                             <td>
                                 <?php if (!empty($assIssues)): ?>
                                     <?php foreach ($assIssues as $i): ?>
-                                        <span class="tag tag-blue"><?= htmlspecialchars($i['label']) ?></span>
+                                        <span class="tag <?= $i['paid'] > 0 ? 'tag-orange' : 'tag-red' ?>"
+                                              <?= $i['paid'] > 0 ? 'title="دفع ' . number_format($i['paid'],2) . ' / ' . number_format($i['due'],2) . ' DH"' : '' ?>>
+                                            <?= htmlspecialchars($i['label']) ?>
+                                            <small>(<?= number_format($i['paid'] > 0 ? $i['rest'] : $i['due'], 2) ?>)</small>
+                                        </span>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <span class="color-aaa">—</span>
@@ -119,8 +135,29 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
                             <td>
                                 <?php if (!empty($adhIssues)): ?>
                                     <?php foreach ($adhIssues as $i): ?>
-                                        <span class="tag tag-purple"><?= htmlspecialchars($i['label']) ?></span>
+                                        <span class="tag <?= $i['paid'] > 0 ? 'tag-orange' : 'tag-red' ?>"
+                                              <?= $i['paid'] > 0 ? 'title="دفع ' . number_format($i['paid'],2) . ' / ' . number_format($i['due'],2) . ' DH"' : '' ?>>
+                                            <?= htmlspecialchars($i['label']) ?>
+                                            <small>(<?= number_format($i['paid'] > 0 ? $i['rest'] : $i['due'], 2) ?>)</small>
+                                        </span>
                                     <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span class="color-aaa">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- Events (exams/tournaments) -->
+                            <td>
+                                <?php if (!empty($eventIssues)): ?>
+                                    <div class="issue-tags">
+                                    <?php foreach ($eventIssues as $i): ?>
+                                        <span class="tag <?= $i['paid'] > 0 ? 'tag-orange' : 'tag-red' ?>"
+                                              <?= $i['paid'] > 0 ? 'title="دفع ' . number_format($i['paid'],2) . ' / ' . number_format($i['due'],2) . ' DH"' : '' ?>>
+                                            <?= htmlspecialchars($i['label']) ?>
+                                            <small>(<?= number_format($i['paid'] > 0 ? $i['rest'] : $i['due'], 2) ?>)</small>
+                                        </span>
+                                    <?php endforeach; ?>
+                                    </div>
                                 <?php else: ?>
                                     <span class="color-aaa">—</span>
                                 <?php endif; ?>
@@ -132,7 +169,7 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
                             </td>
 
                             <td>
-                                <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($adh['identifier']) ?>&year=<?= $defaultSportYear ?>"
+                                <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($adh['identifier']) ?>&season=<?= $currentSeason ?>"
                                    class="btn-shape bg-c-60 color-fff">دفع</a>
                             </td>
                         </tr>
@@ -146,7 +183,9 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
 <style>
 .issue-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .tag {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 3px 10px;
     border-radius: 20px;
     font-size: 12px;
@@ -154,17 +193,17 @@ $grandTotal = array_sum(array_column($blackList, 'total_rest'));
     white-space: nowrap;
     letter-spacing: 0.2px;
 }
-.tag-red    { background:#fde8e8; color:#b91c1c; }
-.tag-orange { background:#fef3c7; color:#b45309; }
-.tag-blue   { background:#dbeafe; color:#1e40af; }
-.tag-purple { background:#ede9fe; color:#5b21b6; }
-.flex-wrap  { flex-wrap: wrap; }
-.gap-10     { gap: 10px; }
+.tag small   { font-weight: 400; opacity: .85; }
+.tag-red     { background:#fde8e8; color:#b91c1c; }
+.tag-orange  { background:#fef3c7; color:#b45309; }
+.tag-legend  { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.legend-item { display:flex; align-items:center; gap:4px; font-size:13px; color:#555; }
+.flex-wrap   { flex-wrap: wrap; }
+.gap-10      { gap: 10px; }
 .align-center { align-items: center; }
-.d-flex     { display: flex; }
-.p-8        { padding: 8px; }
-.rad-6      { border-radius: 6px; }
-.mb-15      { margin-bottom: 15px; }
+.d-flex      { display: flex; }
+.rad-6       { border-radius: 6px; }
+.mb-15       { margin-bottom: 15px; }
 </style>
 
 <script>
