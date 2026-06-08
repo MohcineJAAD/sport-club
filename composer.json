@@ -6,5 +6,10 @@
         "psr-4": {
             "": "includes/"
         }
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.12"
+        }
     }
 }

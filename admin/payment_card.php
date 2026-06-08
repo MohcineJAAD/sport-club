@@ -68,15 +68,15 @@ $janAmt     = $cardData['examJanAmount'];
 $junAmt     = $cardData['examJunAmount'];
 $janDue     = $cardData['examJanDue'] > 0 ? $cardData['examJanDue'] : $examPrice;
 $junDue     = $cardData['examJunDue'] > 0 ? $cardData['examJunDue'] : $examPrice;
-$janPartial = $janAmt > 0 && $janDue > 0 && $janAmt < $janDue - 0.01;
-$junPartial = $junAmt > 0 && $junDue > 0 && $junAmt < $junDue - 0.01;
+$janPartial = $janDue > 0 && $janAmt < $janDue - 0.01;
+$junPartial = $junDue > 0 && $junAmt < $junDue - 0.01;
 
 // Exam summary status — treat sub-exam as OK if due=0 AND amt=0 (not applicable)
-$janOk        = ($janAmt >= $janDue - 0.01 && $janAmt > 0) || ($janAmt == 0 && $janDue == 0);
-$junOk        = ($junAmt >= $junDue - 0.01 && $junAmt > 0) || ($junAmt == 0 && $junDue == 0);
+$janOk        = ($janAmt >= $janDue - 0.01 && $janAmt > 0) || ($janDue == 0);
+$junOk        = ($junAmt >= $junDue - 0.01 && $junAmt > 0) || ($junDue == 0);
 $examAnyPaid  = $janAmt > 0 || $junAmt > 0;
 $examPaidFull = $janOk && $junOk && $examAnyPaid;
-$examCls      = 'flex-cell' . ($examPaidFull ? ' paid' : ($examAnyPaid ? ' cell-partial' : ''));
+$examCls      = 'flex-cell' . ($examPaidFull ? ' paid' : ($janPartial || $junPartial ? ' cell-partial' : ''));
 
 // Tournament summary status
 $tourTotal    = count($tournaments);
@@ -548,7 +548,7 @@ function wireCalc(cell) {
     function calc() {
         const price = parseFloat(priceIn.value) || 0;
         const cash  = parseFloat(cashIn.value)  || 0;
-        if (!cashIn.value) { restDiv.textContent = ''; return; }
+        if (!cashIn.value || parseFloat(cashIn.value) === 0) { restDiv.textContent = ''; return; }
         const diff = cash - price;
         restDiv.textContent = diff >= 0 ? 'الباقي: +' + diff.toFixed(2) + ' DH' : 'ناقص: ' + Math.abs(diff).toFixed(2) + ' DH';
         restDiv.className   = 'ce-rest ' + (diff >= 0 ? 'rest-pos' : 'rest-neg');
