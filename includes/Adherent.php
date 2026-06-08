@@ -156,16 +156,8 @@ class Adherent
 
     private function generateIdentifier()
     {
-        $stmt = $this->conn->prepare("SELECT identifier FROM adherents ORDER BY identifier DESC LIMIT 1");
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $stmt->close();
-
-        $last = $result->fetch_assoc();
-        if (!$last) {
-            return 'A000000001';
-        }
-        $number = (int)substr($last['identifier'], 1) + 1;
-        return 'A' . str_pad($number, 9, '0', STR_PAD_LEFT);
+        $result = $this->conn->query("SELECT MAX(CAST(identifier AS UNSIGNED)) AS max_id FROM adherents");
+        $row    = $result->fetch_assoc();
+        return (string)(($row['max_id'] ?? 0) + 1);
     }
 }

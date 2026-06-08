@@ -304,8 +304,7 @@ class Payment {
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    public function getUnpaidByMonth($month)
-    {
+    public function getUnpaidByMonth($month) {
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                 a.guardian_name, a.guardian_phone
@@ -329,23 +328,24 @@ class Payment {
      * Members who have 5+ attendance sessions in the given month but have NOT paid.
      * $month = 'YYYY-MM'
      */
-    public function getUnpaidWithAttendance($month)
-    {
+    public function getUnpaidWithAttendance($month) {
         [$y, $m] = explode('-', $month);
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                    a.guardian_name, a.guardian_phone,
+                   a.monthly_price, p.price AS plan_price,
                    COUNT(att.id) AS session_count
             FROM adherents a
             JOIN attendance att ON att.identifier = a.identifier
                 AND YEAR(att.`date`) = ? AND MONTH(att.`date`) = ?
+            LEFT JOIN plans p ON a.type = p.name
             WHERE a.status = 'active'
               AND a.identifier NOT IN (
-                  SELECT p.identifier FROM payments p
-                  WHERE DATE_FORMAT(p.payment_date, '%Y-%m') = ?
-                    AND p.type = 'mois'
+                  SELECT p2.identifier FROM payments p2
+                  WHERE DATE_FORMAT(p2.payment_date, '%Y-%m') = ?
+                    AND p2.type = 'mois'
               )
-            GROUP BY a.identifier, a.nom, a.prenom, a.type, a.guardian_name, a.guardian_phone
+            GROUP BY a.identifier, a.nom, a.prenom, a.type, a.guardian_name, a.guardian_phone, a.monthly_price, p.price
             HAVING COUNT(att.id) >= 5
             ORDER BY a.nom, a.prenom
         ");
@@ -410,7 +410,7 @@ class Payment {
         foreach ($allPayments as $p) {
             $paysByAdherent[$p['identifier']][] = $p;
         }
-        
+
         // Attendance counts per identifier per YYYY-MM
         $stmt = $this->conn->prepare(
             "SELECT identifier, DATE_FORMAT(`date`, '%Y-%m') AS ym, COUNT(*) AS cnt FROM attendance GROUP BY identifier, ym"
@@ -474,6 +474,7 @@ class Payment {
 
                         $ym       = sprintf('%04d-%02d', $actualYear, $m);
                         $sessions = $attByAdherent[$adh['identifier']][$ym] ?? 0;
+
                         if (!isset($paidYM[$ym])) {
                             // Only flag as debt if 5+ sessions attended
                             if ($sessions >= 5) {
@@ -523,5 +524,35 @@ class Payment {
         }
 
         return $blackList;
+    }
+
+    /**
+     * Current month: active members with 5+ sessions who haven't paid.
+     * Same structure as getBlackListData() rows but only this month's debt.
+     */
+    /**
+     * All debt (same as black list) but only for members who attended 5+ sessions this month.
+     */
+    public function getUnpaidMonthData(): array {
+        $currentYear  = (int)date('Y');
+        $currentMonth = (int)date('n');
+
+        // Get identifiers with 5+ sessions this month
+        $stmt = $this->conn->prepare("
+            SELECT identifier FROM attendance
+            WHERE YEAR(`date`) = ? AND MONTH(`date`) = ?
+            GROUP BY identifier HAVING COUNT(*) >= 5
+        ");
+        $stmt->bind_param("ii", $currentYear, $currentMonth);
+        $stmt->execute();
+        $activeRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+
+        $activeIds = array_column($activeRows, 'identifier');
+        if (empty($activeIds)) return [];
+
+        // Get full black list and filter to active members only
+        $blackList = $this->getBlackListData();
+        return array_values(array_filter($blackList, fn($a) => in_array($a['identifier'], $activeIds)));
     }
 }

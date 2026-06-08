@@ -4,184 +4,170 @@ require_once '../config/database.php';
 Auth::check();
 
 $payment = new Payment($conn);
+$list    = $payment->getUnpaidMonthData();
 
-$nowMonth = (int)date('n');
 $nowYear  = (int)date('Y');
-$currentSeason = ($nowMonth >= 9 ? $nowYear : $nowYear - 1) . '-' . ($nowMonth >= 9 ? $nowYear + 1 : $nowYear);
-$filterMonth   = date('Y-m');
-
-$unpaid = $payment->getUnpaidWithAttendance($filterMonth);
-
-$byType = [];
-foreach ($unpaid as $m) {
-    $byType[$m['sport_type']][] = $m;
-}
-ksort($byType);
+$nowMonth = (int)date('n');
+$defaultSportYear = $nowMonth >= 9 ? $nowYear : $nowYear - 1;
+$currentSeason    = $defaultSportYear . '-' . ($defaultSportYear + 1);
 
 $arabicMonths = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','غشت','شتنبر','أكتوبر','نونبر','دجنبر'];
-[$fYear, $fMon] = explode('-', $filterMonth);
-$monthLabel = ($arabicMonths[(int)$fMon] ?? $fMon) . ' ' . $fYear;
+$monthLabel   = $arabicMonths[$nowMonth] . ' ' . $nowYear;
 
-$adminRow = $conn->query("SELECT club_name, logo FROM admin LIMIT 1")->fetch_assoc();
-$logoSrc  = !empty($adminRow['logo'])
-    ? '/sport-club/assets/images/' . htmlspecialchars($adminRow['logo'])
-    : '/sport-club/assets/images/logo officiel ASS CLUB SPORTIF-1.png';
+$grandTotal = array_sum(array_column($list, 'total_rest'));
 ?>
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<title>قائمة غير المدفوعين — <?= htmlspecialchars($monthLabel) ?></title>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial, 'Traditional Arabic', sans-serif; background: #eee; direction: rtl; }
+<?php require 'layout/header.php'; ?>
 
-.no-print {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    background: #333;
-}
-.btn {
-    padding: 10px 28px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 15px;
-    text-decoration: none;
-    display: inline-block;
-    font-family: inherit;
-    color: #fff;
-}
-.btn-primary   { background: #203a85; }
-.btn-secondary { background: #203a8599; }
-.no-print span { color: #ddd; font-size: 14px; }
+<h1 class="p-relative">غير المدفوعين — <?= htmlspecialchars($monthLabel) ?></h1>
 
-.doc-sheet {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 10px auto;
-    padding: 14mm 16mm 12mm;
-    background: #fff;
-    page-break-after: always;
-    page-break-inside: avoid;
-    font-size: 12pt;
-}
-.doc-sheet:last-child { page-break-after: avoid; }
+<div class="absences p-20 bg-fff rad-10 m-20">
 
-.doc-header {
-    text-align: center;
-    border-bottom: 3px double #000;
-    padding-bottom: 8px;
-    margin-bottom: 12px;
-}
-.doc-logo {
-    height: 130px;
-    width: auto;
-    object-fit: contain;
-}
+    <div class="between-flex mb-20 flex-wrap gap-10">
+        <div>
+            <span class="fs-16">
+                إجمالي غير المدفوعين: <strong><?= count($list) ?></strong>
+                &nbsp;|&nbsp;
+                إجمالي المبلغ المستحق: <strong style="color:#b91c1c"><?= number_format($grandTotal, 2) ?> DH</strong>
+            </span>
+        </div>
+        <div class="d-flex gap-10 align-center">
+            <a href="/sport-club/admin/payments.php" class="btn-shape bg-c-60 color-fff">← رجوع</a>
+        </div>
+    </div>
 
-.doc-notice {
-    border: 2px solid #000;
-    padding: 10px 16px;
-    font-size: 13pt;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 12px;
-    background: #f5f5f5;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-}
+    <?php if (empty($list)): ?>
+        <p class="txt-c color-aaa p-20">لا يوجد مشتركون نشطون هذا الشهر مع واجبات متأخرة 🎉</p>
+    <?php else: ?>
 
-.doc-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11pt;
-}
-.doc-table th, .doc-table td {
-    border: 1px solid #000;
-    padding: 6px 10px;
-    text-align: center;
-}
-.doc-table thead tr {
-    background: #d0d0d0;
-    font-weight: bold;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-}
-.doc-table tbody tr:nth-child(even) {
-    background: #f5f5f5;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-}
-.col-name { width: 70%; text-align: right !important; }
-.col-id   { width: 30%; }
+        <input type="text" id="blSearch" class="mb-15 p-10 w-full rad-6"
+               style="border:1px solid #ddd;box-sizing:border-box"
+               placeholder="ابحث بالاسم أو المعرف...">
 
-.empty-state {
-    width: 210mm;
-    margin: 30px auto;
-    background: #fff;
-    padding: 40px;
-    text-align: center;
-    font-size: 16px;
-    color: #666;
-    border-radius: 8px;
-}
+        <div class="responsive-table">
+            <table class="fs-15 w-full" id="blTable">
+                <thead>
+                    <tr>
+                        <th>الاسم الكامل</th>
+                        <th>المعرف</th>
+                        <th>الرياضة</th>
+                        <th>الواجب الشهري</th>
+                        <th>الأشهر غير المدفوعة</th>
+                        <th>الأشهر الناقصة</th>
+                        <th>التأمين</th>
+                        <th>الانخراط</th>
+                        <th>المجموع المستحق</th>
+                        <th>بطاقة الدفع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($list as $adh):
+                        $unpaidMonths  = array_filter($adh['issues'], fn($i) => $i['type'] === 'month_unpaid');
+                        $partialMonths = array_filter($adh['issues'], fn($i) => $i['type'] === 'month_partial');
+                        $assIssues     = array_filter($adh['issues'], fn($i) => $i['type'] === 'assurance');
+                        $adhIssues     = array_filter($adh['issues'], fn($i) => $i['type'] === 'adhesion');
+                    ?>
+                        <tr>
+                            <td><?= htmlspecialchars($adh['prenom'] . ' ' . $adh['nom']) ?></td>
+                            <td><?= htmlspecialchars($adh['identifier']) ?></td>
+                            <td><?= htmlspecialchars($adh['sport_type']) ?></td>
+                            <td><?= number_format($adh['monthly_due'], 2) ?> DH</td>
 
-@media print {
-    body { background: #fff; }
-    .no-print { display: none !important; }
-    .doc-sheet { margin: 0; }
-    @page { size: A4 portrait; margin: 0; }
-}
-</style>
-</head>
-<body>
+                            <td>
+                                <?php if (!empty($unpaidMonths)): ?>
+                                    <div class="issue-tags">
+                                        <?php foreach ($unpaidMonths as $i): ?>
+                                            <span class="tag tag-red">
+                                                <?= htmlspecialchars($i['label']) ?>
+                                                <small>(<?= number_format($i['due'], 2) ?>)</small>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="color-aaa">—</span>
+                                <?php endif; ?>
+                            </td>
 
-<div class="no-print">
-    <?php if (!empty($unpaid)): ?>
-    <button class="btn btn-primary" onclick="window.print()">&#128438; طباعة / تنزيل PDF</button>
+                            <td>
+                                <?php if (!empty($partialMonths)): ?>
+                                    <div class="issue-tags">
+                                        <?php foreach ($partialMonths as $i): ?>
+                                            <span class="tag tag-orange" title="دفع <?= number_format($i['paid'],2) ?> / <?= number_format($i['due'],2) ?> DH">
+                                                <?= htmlspecialchars($i['label']) ?>
+                                                <small>(<?= number_format($i['rest'],2) ?>)</small>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="color-aaa">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <td>
+                                <?php if (!empty($assIssues)): ?>
+                                    <?php foreach ($assIssues as $i): ?>
+                                        <span class="tag tag-blue"><?= htmlspecialchars($i['label']) ?></span>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span class="color-aaa">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <td>
+                                <?php if (!empty($adhIssues)): ?>
+                                    <?php foreach ($adhIssues as $i): ?>
+                                        <span class="tag tag-purple"><?= htmlspecialchars($i['label']) ?></span>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span class="color-aaa">—</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <td style="color:#b91c1c;font-weight:bold;">
+                                <?= number_format($adh['total_rest'], 2) ?> DH
+                            </td>
+
+                            <td>
+                                <a href="/sport-club/admin/payment_card.php?id=<?= urlencode($adh['identifier']) ?>&season=<?= $currentSeason ?>"
+                                   class="btn-shape bg-c-60 color-fff">دفع</a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php endif; ?>
-    <a href="/sport-club/admin/payments.php" class="btn btn-secondary">&#8594; رجوع</a>
-    <span>غير المدفوعين — <?= htmlspecialchars($monthLabel) ?> &nbsp;|&nbsp; العدد: <?= count($unpaid) ?></span>
 </div>
 
-<?php if (empty($unpaid)): ?>
-    <div class="empty-state">لا يوجد مشتركون غير مدفوعين بعد 5 جلسات هذا الشهر 🎉</div>
-<?php else: ?>
-    <?php foreach ($byType as $sport => $members): ?>
-    <div class="doc-sheet">
+<style>
+.issue-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+}
+.tag-red    { background:#fde8e8; color:#b91c1c; }
+.tag-orange { background:#fef3c7; color:#b45309; }
+.tag-blue   { background:#dbeafe; color:#1e40af; }
+.tag-purple { background:#ede9fe; color:#5b21b6; }
+.flex-wrap  { flex-wrap: wrap; }
+.gap-10     { gap: 10px; }
+.align-center { align-items: center; }
+.d-flex     { display: flex; }
+.rad-6      { border-radius: 6px; }
+.mb-15      { margin-bottom: 15px; }
+</style>
 
-        <div class="doc-header">
-            <img src="<?= $logoSrc ?>" alt="شعار" class="doc-logo">
-        </div>
+<script>
+document.getElementById('blSearch').addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    document.querySelectorAll('#blTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
 
-        <div class="doc-notice">
-            تذكير: المرجو من المنخرطين المذكورة أسماؤهم في اللائحة أداء واجبهم الشهري
-        </div>
-
-        <table class="doc-table">
-            <thead>
-                <tr>
-                    <th class="col-id">المعرف</th>
-                    <th class="col-name">الاسم الكامل</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($members as $m): ?>
-                <tr>
-                    <td class="col-id"><?= htmlspecialchars($m['identifier']) ?></td>
-                    <td class="col-name"><?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-
-    </div>
-    <?php endforeach; ?>
-<?php endif; ?>
-
-</body>
-</html>
+<?php require 'layout/footer.php'; ?>
