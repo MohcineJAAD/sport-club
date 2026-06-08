@@ -387,6 +387,7 @@ class Payment {
         $stmt = $this->conn->prepare("
             SELECT a.identifier, a.nom, a.prenom, a.type AS sport_type,
                    a.monthly_price, a.date_adhesion,
+                   a.guardian_name, a.guardian_phone, a.second_guardian_phone,
                    p.price AS plan_price,
                    p.assurance AS assurance_price,
                    p.adherence AS adhesion_price
