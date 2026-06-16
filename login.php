@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body>
+    <?php require_once __DIR__ . '/public/layout/header.php'; ?>
     <section class="landing">
         <div class="container">
             <div class="illustration">
